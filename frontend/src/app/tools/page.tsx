@@ -318,7 +318,7 @@ export default function ToolsPage() {
                     sx={{
                       width: 52,
                       height: 52,
-                      borderRadius: '50%',
+                      borderRadius: '6%',
                       backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(99, 102, 241, 0.12)',
                       color: '#8b5cf6',
                       display: 'flex',

@@ -314,8 +314,9 @@ export default function ChatPage() {
     <Box
       sx={{
         display: 'flex',
-        height: '100vh',
-        width: '100vw',
+        height: { xs: '100dvh', md: '100vh' },
+        width: '100%',
+        maxWidth: '100vw',
         overflow: 'hidden',
         backgroundColor: 'background.default',
       }}
@@ -343,8 +344,10 @@ export default function ChatPage() {
           display: 'flex',
           flexDirection: 'column',
           height: '100%',
+          minHeight: 0,
           minWidth: 0,
           position: 'relative',
+          overflow: 'hidden',
         }}
       >
         <ChatToolbar
@@ -367,7 +370,9 @@ export default function ChatPage() {
             flexDirection: 'column',
             overflow: 'hidden',
             width: '100%',
-            maxWidth: 950,
+            maxWidth: { sm: '70%', xs: '100%' },
+            minHeight: 0,
+            minWidth: 0,
             mx: 'auto',
           }}
         >

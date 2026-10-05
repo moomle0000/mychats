@@ -46,6 +46,10 @@ function CodeBlock({ language, code }: CodeBlockProps) {
           theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.15)',
         backgroundColor: '#12141a',
         boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+        maxWidth: '100%',
+        minWidth: 0,
+        width: '100%',
+        boxSizing: 'border-box',
       }}
     >
       {/* Code Header Bar */}
@@ -103,6 +107,10 @@ function CodeBlock({ language, code }: CodeBlockProps) {
           m: 0,
           p: 1.5,
           overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          maxWidth: '100%',
+          minWidth: 0,
+          boxSizing: 'border-box',
           fontFamily: 'Consolas, Monaco, "Courier New", Courier, monospace',
           fontSize: '0.84rem',
           lineHeight: 1.55,
@@ -130,7 +138,10 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
       sx={{
         lineHeight: 1.6,
         fontSize: '0.92rem',
+        overflowWrap: 'anywhere',
         wordBreak: 'break-word',
+        minWidth: 0,
+        maxWidth: '100%',
         '& > *:first-child': { mt: 0 },
         '& > *:last-child': { mb: 0 },
       }}
@@ -206,6 +217,10 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                 fontSize: 'inherit',
                 lineHeight: 'inherit',
                 color: 'text.primary',
+                overflowWrap: 'anywhere',
+                wordBreak: 'break-word',
+                minWidth: 0,
+                maxWidth: '100%',
               }}
             >
               {children}
@@ -247,6 +262,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                       : 'rgba(0, 0, 0, 0.08)',
                   color: (theme) =>
                     theme.palette.mode === 'dark' ? '#cbd5e1' : '#334155',
+                  overflowWrap: 'anywhere',
                   wordBreak: 'break-word',
                   verticalAlign: 'baseline',
                 }}
@@ -346,7 +362,17 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
           // Tables (GFM)
           table: ({ children }) => (
-            <Box sx={{ overflowX: 'auto', my: 1.5, maxWidth: '100%' }}>
+            <Box
+              sx={{
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                my: 1.5,
+                maxWidth: '100%',
+                minWidth: 0,
+                width: '100%',
+                boxSizing: 'border-box',
+              }}
+            >
               <Box
                 component="table"
                 sx={{

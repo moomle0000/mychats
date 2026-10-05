@@ -115,18 +115,27 @@ export default function ChatBox({
 
   if (isReadOnly) {
     return (
-      <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+      <Box
+        sx={{
+          p: 2,
+          display: 'flex',
+          justifyContent: 'center',
+          flexShrink: 0,
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      >
         <Paper
           variant="outlined"
           sx={{
             py: 1.25,
-            px: 3,
-            borderRadius: 6,
+            // px: 3,
+            borderRadius: 2,
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
             backgroundColor: 'action.hover',
-            maxWidth: 600,
+            maxWidth: { sm: '70%', xs: '100%' },
           }}
         >
           <LockOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
@@ -143,14 +152,17 @@ export default function ChatBox({
   return (
     <Box
       sx={{
-        p: { xs: 1.5, sm: 2.5 },
+        p: { xs: 1.25, sm: 2.5 },
+        pb: { xs: 'calc(10px + env(safe-area-inset-bottom, 0px))', sm: 2.5 },
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         width: '100%',
+        flexShrink: 0,
+        boxSizing: 'border-box',
       }}
     >
-      <Box sx={{ width: '100%', maxWidth: 768 }}>
+      <Box sx={{ width: '100%', maxWidth: "100%" }}>
         
         {/* Mode Selector Header Pill Bar with Tab Shortcut Indicator */}
         <Box
@@ -168,7 +180,7 @@ export default function ChatBox({
               alignItems: 'center',
               gap: 0.5,
               p: 0.5,
-              borderRadius: 5,
+              borderRadius: 2,
               backgroundColor: (theme) =>
                 theme.palette.mode === 'dark' ? '#262626' : '#f0f0f0',
               border: 1,
@@ -186,7 +198,7 @@ export default function ChatBox({
               sx={{
                 fontWeight: 600,
                 fontSize: '0.75rem',
-                borderRadius: 4,
+                borderRadius: 2,
                 backgroundColor: !isAIMode ? 'primary.main' : 'transparent',
                 color: !isAIMode ? 'primary.contrastText' : 'text.secondary',
                 '&:hover': {
@@ -205,7 +217,7 @@ export default function ChatBox({
               sx={{
                 fontWeight: 600,
                 fontSize: '0.75rem',
-                borderRadius: 4,
+                borderRadius: 2,
                 background: isAIMode
                   ? 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'
                   : 'transparent',
@@ -269,7 +281,7 @@ export default function ChatBox({
               gap: 1,
               p: 1,
               mb: 1.5,
-              borderRadius: 3,
+              borderRadius: 2,
               backgroundColor: 'action.hover',
             }}
           >
@@ -296,7 +308,7 @@ export default function ChatBox({
             alignItems: 'flex-end',
             gap: 1,
             p: 1,
-            borderRadius: 6,
+            borderRadius: 2,
             border: 1,
             borderColor: (theme) =>
               isAIMode
@@ -395,7 +407,7 @@ export default function ChatBox({
                     ? 'linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)'
                     : 'primary.main',
                   color: '#ffffff',
-                  borderRadius: '50%',
+                  borderRadius: '2px',
                   '&:hover': {
                     background: isAIMode
                       ? 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)'

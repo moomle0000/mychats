@@ -39,6 +39,7 @@ export default function MessageList({
   isReadOnly,
   aiGenerating,
 }: MessageListProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -57,7 +58,12 @@ export default function MessageList({
 
   // Auto-scroll on new message
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
   }, [messages]);
 
   const formatTime = (dateStr: string) => {
@@ -91,13 +97,21 @@ export default function MessageList({
 
   return (
     <Box
+      ref={containerRef}
       sx={{
+        flex: 1,
         flexGrow: 1,
+        minHeight: 0,
+        minWidth: 0,
+        width: '100%',
         overflowY: 'auto',
-        p: { xs: 2, sm: 3 },
+        overflowX: 'hidden',
+        p: { xs: 1.25, sm: 2.5, md: 3 },
+        pb: { xs: 2.5, sm: 3 },
         display: 'flex',
         flexDirection: 'column',
-        gap: 2,
+        gap: { xs: 1.5, sm: 2 },
+        WebkitOverflowScrolling: 'touch',
       }}
     >
       {messages.length === 0 ? (
@@ -135,9 +149,11 @@ export default function MessageList({
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: isSenderMe ? 'flex-end' : 'flex-start',
-                maxWidth: { xs: '92%', sm: '78%' },
+                maxWidth: { xs: '100%', sm: '88%', md: '78%' },
+                minWidth: 0,
                 alignSelf: isSenderMe ? 'flex-end' : 'flex-start',
                 position: 'relative',
+                boxSizing: 'border-box',
                 '&:hover .msg-actions': { opacity: 1 },
               }}
             >
@@ -146,9 +162,12 @@ export default function MessageList({
                 sx={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1,
+                  flexWrap: 'wrap',
+                  gap: 0.75,
                   mb: 0.5,
-                  px: 1,
+                  px: 0.75,
+                  maxWidth: '100%',
+                  minWidth: 0,
                 }}
               >
                 {isAI ? (
@@ -213,7 +232,7 @@ export default function MessageList({
               <Paper
                 elevation={0}
                 sx={{
-                  p: isImage ? 1 : 1.75,
+                  p: isImage ? 1 : { xs: 1.25, sm: 1.75 },
                   borderRadius: 3,
                   backgroundColor: (theme) => {
                     if (isSenderMe) {
@@ -231,8 +250,13 @@ export default function MessageList({
                     }
                     return theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
                   },
+                  maxWidth: '100%',
+                  minWidth: 0,
+                  boxSizing: 'border-box',
+                  overflowWrap: 'anywhere',
                   wordBreak: 'break-word',
                   position: 'relative',
+                  overflow: 'hidden',
                 }}
               >
                 {/* Image message */}
@@ -261,6 +285,10 @@ export default function MessageList({
                       mt: isImage ? 1 : 0,
                       px: isImage ? 1 : 0,
                       color: 'text.primary',
+                      minWidth: 0,
+                      maxWidth: '100%',
+                      overflowWrap: 'anywhere',
+                      wordBreak: 'break-word',
                     }}
                   >
                     <MarkdownRenderer content={msg.text} />

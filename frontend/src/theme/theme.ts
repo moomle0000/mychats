@@ -30,7 +30,7 @@ export const getAppTheme = (mode: 'light' | 'dark') => {
       },
     },
     shape: {
-      borderRadius: 12,
+      borderRadius: 6,
     },
     typography: {
       fontFamily: [
