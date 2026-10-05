@@ -43,7 +43,11 @@ export default function ChatPage() {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab' && !e.shiftKey && !e.altKey && !e.ctrlKey) {
         const tag = (document.activeElement?.tagName || '').toLowerCase();
-        // If user is focused on the page or inside input, allow Tab to switch mode
+        // If focus is inside the chat text field (textarea/input), the ChatBox
+        // onKeyDown handler already switches the mode. Skip here to avoid a
+        // double-toggle (two handlers firing on one Tab press = no net change).
+        if (tag === 'input' || tag === 'textarea') return;
+        // Otherwise (body, buttons, links, etc.) let Tab switch the mode.
         if (tag !== 'button' && tag !== 'a') {
           e.preventDefault();
           handleToggleMode();
