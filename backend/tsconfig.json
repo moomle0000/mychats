@@ -1,0 +1,53 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+
+    "paths": {
+      "@modules": ["./src/modules"],
+      "@modules/*": ["./src/modules/*"],
+      "@config": ["./src/config"],
+      "@config/*": ["./src/config/*"],
+      "@database": ["./src/database"],
+      "@database/*": ["./src/database/*"],
+      "@dtos/*": ["./src/dtos/*"],
+      "@exceptions/*": ["./src/exceptions/*"],
+      "@interfaces/*": ["./src/interfaces/*"],
+      "@middlewares/*": ["./src/middlewares/*"],
+      "@models/*": [
+        "./src/modules/auth/*",
+        "./src/modules/chat/*"
+      ],
+      "@services/*": [
+        "./src/modules/auth/*",
+        "./src/modules/chat/*"
+      ],
+      "@utils/*": ["./src/utils/*"]
+    },
+
+    "rootDir": "./src",
+    "outDir": "./dist",
+
+    "esModuleInterop": true,
+    "strict": true,
+    "strictPropertyInitialization": false,
+    "skipLibCheck": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.json"
+  ],
+
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}

@@ -1,0 +1,76 @@
+# ==========================================
+# Dependencies
+# ==========================================
+node_modules/
+*/node_modules/
+.pnp
+.pnp.*
+
+# ==========================================
+# Build & Compiled Output
+# ==========================================
+dist/
+backend/dist/
+.next/
+frontend/.next/
+out/
+frontend/out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+.env.*
+*.env
+*.env.*
+!.env.example
+!*.env.example
+
+# ==========================================
+# Logs & Runtime Data
+# ==========================================
+logs/
+backend/logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# User Uploads & Media Attachments
+# ==========================================
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/uploads/images/*
+!backend/uploads/images/.gitkeep
+
+# ==========================================
+# OS & Editor Files
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+nul
+
+# ==========================================
+# Temporary & Cache
+# ==========================================
+.turbo/
+.vercel/
+coverage/
+.kilo/
+session-*.md
+noneedtoreadbyagent/
+template/

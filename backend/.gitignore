@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+logs/
+*.log
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+uploads/images/*
+!uploads/images/.gitkeep
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
