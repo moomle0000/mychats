@@ -1,7 +1,7 @@
 import { getOrCreateDeviceId, getDeviceLabel, setDeviceLabel } from './device';
 
 export { getOrCreateDeviceId, getDeviceLabel, setDeviceLabel };
-export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5223';
+export const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://192.168.0.11:5223';
 
 export interface User {
   _id: string;
@@ -60,8 +60,34 @@ export interface AITool {
   updatedAt?: string;
 }
 
+const AUTH_TOKEN_KEY = 'chat_auth_token';
+
+export const getAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  if (token && !document.cookie.includes('Authorization=')) {
+    document.cookie = `Authorization=${token}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+  }
+  return token;
+};
+
+export const setAuthToken = (token: string | null) => {
+  if (typeof window === 'undefined') return;
+  if (token) {
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    document.cookie = `Authorization=${token}; path=/; max-age=2592000; SameSite=Lax`;
+    document.cookie = `token=${token}; path=/; max-age=2592000; SameSite=Lax`;
+  } else {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    document.cookie = 'Authorization=; path=/; max-age=0; SameSite=Lax';
+    document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+  }
+};
+
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${BACKEND_URL}${endpoint}`;
+  const isBrowser = typeof window !== 'undefined';
+  const url = isBrowser ? endpoint : `${BACKEND_URL}${endpoint}`;
   const headers = new Headers(options.headers || {});
 
   // Attach persistent device identity headers (Ensure ASCII-safe encoding for headers)
@@ -77,6 +103,14 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
       } catch {
         // ignore
       }
+    }
+  }
+
+  // Attach Authorization header if token is stored
+  if (!headers.has('Authorization')) {
+    const token = getAuthToken();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
     }
   }
 
@@ -102,31 +136,48 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 // Auth API
 export const api = {
   async register(email: string, username: string, password: string): Promise<{ data: User; token: string }> {
-    return request('/api/auth/register', {
+    const res = await request<{ data: User; token: string }>('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, username, password }),
     });
+    if (res.token) {
+      setAuthToken(res.token);
+    }
+    return res;
   },
 
   async login(email: string, password: string): Promise<{ data: User; token: string }> {
-    return request('/api/auth/login', {
+    const res = await request<{ data: User; token: string }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
+    if (res.token) {
+      setAuthToken(res.token);
+    }
+    return res;
   },
 
   async loginGoogle(idToken: string): Promise<{ data: User; token: string }> {
-    return request('/api/auth/oauth/google', {
+    const res = await request<{ data: User; token: string }>('/api/auth/oauth/google', {
       method: 'POST',
       body: JSON.stringify({ idToken }),
     });
+    if (res.token) {
+      setAuthToken(res.token);
+    }
+    return res;
   },
 
-  async getMe(): Promise<{ data: User }> {
-    return request('/api/auth/me', { method: 'GET' });
+  async getMe(): Promise<{ data: User | null }> {
+    const res = await request<{ data: User | null }>('/api/auth/me', { method: 'GET' });
+    if (!res.data) {
+      setAuthToken(null);
+    }
+    return res;
   },
 
   async logout(): Promise<{ message: string }> {
+    setAuthToken(null);
     return request('/api/auth/logout', { method: 'POST' });
   },
 

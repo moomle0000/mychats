@@ -97,6 +97,7 @@ export class App {
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'x-device-id', 'x-device-label', 'Accept', 'Origin'],
       exposedHeaders: ['Set-Cookie', 'Content-Disposition'],
       optionsSuccessStatus: 204,
     };

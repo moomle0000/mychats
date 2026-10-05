@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { Routes } from '@interfaces/routes.interface';
 import { AuthController } from './auth.controller';
-import { AuthMiddleware } from '@middlewares/auth.middleware';
+import { AuthMiddleware, OptionalAuthMiddleware } from '@middlewares/auth.middleware';
 
 export class AuthRoute implements Routes {
   public path = '/api/auth';
@@ -16,7 +16,7 @@ export class AuthRoute implements Routes {
     this.router.post(`${this.path}/register`, this.authController.register);
     this.router.post(`${this.path}/login`, this.authController.login);
     this.router.post(`${this.path}/oauth/google`, this.authController.googleAuth);
-    this.router.get(`${this.path}/me`, AuthMiddleware, this.authController.me);
+    this.router.get(`${this.path}/me`, OptionalAuthMiddleware, this.authController.me);
     this.router.post(`${this.path}/logout`, this.authController.logout);
 
     // Admin Account & Device Management endpoints

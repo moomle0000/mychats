@@ -41,8 +41,11 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      await api.login(email, password);
-      router.push('/');
+      const res = await api.login(email, password);
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const redirect = params?.get('redirect');
+      const targetUrl = redirect || (res.data?.role === 'admin' ? '/admin' : '/');
+      window.location.href = targetUrl;
     } catch (err: any) {
       setError(err?.message || 'Authentication failed');
     } finally {
@@ -54,8 +57,11 @@ export default function LoginPage() {
     try {
       setLoading(true);
       setError(null);
-      await api.loginGoogle(credentialResponse.credential);
-      router.push('/');
+      const res = await api.loginGoogle(credentialResponse.credential);
+      const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const redirect = params?.get('redirect');
+      const targetUrl = redirect || (res.data?.role === 'admin' ? '/admin' : '/');
+      window.location.href = targetUrl;
     } catch (err: any) {
       setError(err?.message || 'Google sign in failed');
     } finally {

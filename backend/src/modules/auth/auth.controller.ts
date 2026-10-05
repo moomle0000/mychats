@@ -45,8 +45,8 @@ export class AuthController {
 
   public me = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = req.user;
-      res.status(200).json({ data: user, message: 'Authenticated user' });
+      const user = req.user || null;
+      res.status(200).json({ data: user, message: user ? 'Authenticated user' : 'Unauthenticated' });
     } catch (error) {
       next(error);
     }
