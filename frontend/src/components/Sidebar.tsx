@@ -121,15 +121,8 @@ export default function Sidebar({
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
   const [newDeviceLabel, setNewDeviceLabel] = useState('');
 
-  // Tools collapsible state (expanded by default on mobile so all tools are immediately visible)
-  const [toolsExpanded, setToolsExpanded] = useState(isMobile);
-
-  // Sync toolsExpanded with isMobile when screen size changes
-  React.useEffect(() => {
-    if (isMobile) {
-      setToolsExpanded(true);
-    }
-  }, [isMobile]);
+  // Tools collapsible state (click-to-toggle; user choice sticks on all screens)
+  const [toolsExpanded, setToolsExpanded] = useState(true);
 
   // Pinned conversations (sorted chronologically)
   const pinnedConversations = React.useMemo(() => {
@@ -233,6 +226,8 @@ export default function Sidebar({
       sx={{
         width: 270,
         height: '100%',
+        maxHeight: { xs: '100dvh', md: '100%' },
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         backgroundColor: isDark ? '#171717' : '#eef1f7',
@@ -240,6 +235,7 @@ export default function Sidebar({
         borderColor: isDark ? '#262626' : '#e3e7f0',
         p: 2,
         transition: 'all 0.2s ease',
+        overflow: 'hidden',
       }}
     >
       {/* Top Header: Brand & Close button */}
@@ -325,23 +321,13 @@ export default function Sidebar({
             : 'none',
           transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden',
-          maxHeight: toolsExpanded ? 480 : 44,
-          '&:hover, &:focus-within': {
-            maxHeight: 480,
-            backgroundColor: (theme) =>
-              theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.95)',
-            boxShadow: (theme) =>
-              theme.palette.mode === 'dark' ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 16px rgba(27,32,48,0.06)',
+          flexShrink: 0,
+          maxHeight: toolsExpanded ? { xs: '42dvh', sm: 480 } : 44,
+          // Click-only toggle: hover must NOT force-expand, otherwise the
+          // section springs back open and can never be closed.
+          '&:hover': {
             borderColor: (theme) =>
               theme.palette.mode === 'dark' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(99, 102, 241, 0.25)',
-            '& .tools-collapse-content': {
-              opacity: 1,
-              transform: 'translateY(0)',
-              pointerEvents: 'auto',
-            },
-            '& .tools-header-chevron': {
-              transform: 'rotate(180deg)',
-            },
           },
         }}
       >
@@ -438,8 +424,12 @@ export default function Sidebar({
             transform: toolsExpanded ? 'translateY(0)' : 'translateY(-4px)',
             transition: 'all 0.2s ease',
             pointerEvents: toolsExpanded ? 'auto' : 'none',
-            maxHeight: 420,
-            overflowY: 'scroll',
+            maxHeight: { xs: 'calc(42dvh - 60px)', sm: 420 },
+            overflowY: 'auto',
+            // Touch momentum scrolling for mobile nested list
+            WebkitOverflowScrolling: 'touch',
+            touchAction: 'pan-y',
+            overscrollBehaviorY: 'contain',
           }}
         >
           {/* 1. Dedicated "My Tasks" (Todo) Button */}
@@ -754,7 +744,9 @@ export default function Sidebar({
       <Box
         sx={{
           flex: 1,
+          minHeight: 0,
           overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
           display: 'flex',
           flexDirection: 'column',
           gap: 0.5,
@@ -1393,6 +1385,8 @@ export default function Sidebar({
           top: 0,
           left: 0,
           bottom: 0,
+          height: '100dvh',
+          maxHeight: '100dvh',
           zIndex: 1300,
         }}
       >
@@ -1407,7 +1401,15 @@ export default function Sidebar({
             zIndex: 1299,
           }}
         />
-        <Box sx={{ position: 'relative', zIndex: 1300, height: '100%' }}>
+        <Box
+          sx={{
+            position: 'relative',
+            zIndex: 1300,
+            height: '100%',
+            maxHeight: '100dvh',
+            display: 'flex',
+          }}
+        >
           {sidebarContent}
         </Box>
       </Box>
