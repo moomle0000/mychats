@@ -8,7 +8,7 @@ body {
   width: 100%;
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-inter), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   overflow-x: hidden;
 }
 
@@ -29,4 +29,16 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(128, 128, 128, 0.4);
+}
+
+/* Theme-aware body colors (higher specificity than MUI CssBaseline's body rule,
+   so a stale SSR-injected dark style can never leak gray text into light mode) */
+html[data-theme='light'] body {
+  background-color: #f7f8fc;
+  color: #1b2030;
+}
+
+html[data-theme='dark'] body {
+  background-color: #131314;
+  color: #e8eaed;
 }

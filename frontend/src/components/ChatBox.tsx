@@ -182,10 +182,10 @@ export default function ChatBox({
               p: 0.5,
               borderRadius: 2,
               backgroundColor: (theme) =>
-                theme.palette.mode === 'dark' ? '#262626' : '#f0f0f0',
+                theme.palette.mode === 'dark' ? '#262626' : '#eceff6',
               border: 1,
               borderColor: (theme) =>
-                theme.palette.mode === 'dark' ? '#333333' : '#e0e0e0',
+                theme.palette.mode === 'dark' ? '#333333' : '#e3e7f0',
             }}
           >
             {/* Chat Mode Pill */}
@@ -257,11 +257,11 @@ export default function ChatBox({
                   fontWeight: 700,
                   borderRadius: 1,
                   backgroundColor: (theme) =>
-                    theme.palette.mode === 'dark' ? '#333333' : '#e5e7eb',
+                    theme.palette.mode === 'dark' ? '#333333' : '#dde2ee',
                   color: 'text.primary',
                   border: 1,
                   borderColor: (theme) =>
-                    theme.palette.mode === 'dark' ? '#444444' : '#d1d5db',
+                    theme.palette.mode === 'dark' ? '#444444' : '#cdd3e0',
                   boxShadow: '0 1px 1px rgba(0,0,0,0.2)',
                 }}
               >
@@ -317,7 +317,7 @@ export default function ChatBox({
                   : '#a78bfa'
                 : theme.palette.mode === 'dark'
                 ? '#3c4043'
-                : '#e0e0e0',
+                : '#e3e7f0',
             backgroundColor: (theme) =>
               theme.palette.mode === 'dark' ? '#1e1f20' : '#ffffff',
             boxShadow: (theme) =>
@@ -325,7 +325,7 @@ export default function ChatBox({
                 ? '0 4px 24px rgba(139, 92, 246, 0.25)'
                 : theme.palette.mode === 'dark'
                 ? '0 4px 20px rgba(0,0,0,0.4)'
-                : '0 2px 12px rgba(0,0,0,0.08)',
+                : '0 2px 12px rgba(27,32,48,0.08)',
             transition: 'border-color 0.25s ease, box-shadow 0.25s ease',
             '&:focus-within': {
               borderColor: isAIMode ? '#8b5cf6' : 'primary.main',
@@ -334,7 +334,7 @@ export default function ChatBox({
                   ? '0 4px 28px rgba(139, 92, 246, 0.35)'
                   : theme.palette.mode === 'dark'
                   ? '0 4px 24px rgba(138, 180, 248, 0.15)'
-                  : '0 4px 16px rgba(26, 115, 232, 0.15)',
+                  : '0 4px 16px rgba(79, 70, 229, 0.15)',
             },
           }}
         >

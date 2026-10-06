@@ -121,7 +121,7 @@ export default function LoginPage() {
             : '0 8px 24px rgba(0,0,0,0.08)',
           backgroundColor: isDark ? '#1e1f20' : '#ffffff',
           border: 1,
-          borderColor: isDark ? '#3c4043' : '#e0e0e0',
+          borderColor: isDark ? '#3c4043' : '#e3e7f0',
         }}
       >
         <CardContent sx={{ p: { xs: 3, sm: 4 } }}>

@@ -788,7 +788,7 @@ export default function AdminPage() {
                                   backgroundColor: (theme) =>
                                     theme.palette.mode === 'dark'
                                       ? 'rgba(255, 255, 255, 0.08)'
-                                      : 'rgba(0, 0, 0, 0.06)',
+                                      : 'rgba(27, 32, 48, 0.07)',
                                 }}
                               />
                             ) : (

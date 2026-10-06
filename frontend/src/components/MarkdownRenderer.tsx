@@ -259,9 +259,9 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                   backgroundColor: (theme) =>
                     theme.palette.mode === 'dark'
                       ? 'rgba(255, 255, 255, 0.12)'
-                      : 'rgba(0, 0, 0, 0.08)',
+                      : 'rgba(27, 32, 48, 0.08)',
                   color: (theme) =>
-                    theme.palette.mode === 'dark' ? '#cbd5e1' : '#334155',
+                    theme.palette.mode === 'dark' ? '#cbd5e1' : '#2f3646',
                   overflowWrap: 'anywhere',
                   wordBreak: 'break-word',
                   verticalAlign: 'baseline',
@@ -416,7 +416,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
                 borderColor: (theme) =>
                   theme.palette.mode === 'dark'
                     ? 'rgba(255, 255, 255, 0.08)'
-                    : 'rgba(0, 0, 0, 0.06)',
+                    : 'rgba(27, 32, 48, 0.07)',
                 '&:last-child': { borderBottom: 0 },
               }}
             >

@@ -351,7 +351,7 @@ export default function ToolsPage() {
                       flexDirection: 'column',
                       borderRadius: 4,
                       border: 1,
-                      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                      borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(27,32,48,0.07)',
                       backgroundColor: isDark ? '#1e1f20' : '#ffffff',
                       boxShadow: isDark
                         ? '0 4px 20px rgba(0,0,0,0.3)'
@@ -429,7 +429,7 @@ export default function ToolsPage() {
                           p: 1.25,
                           borderRadius: 2.5,
                           backgroundColor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.02)',
-                          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                          borderColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(27,32,48,0.07)',
                         }}
                       >
                         <Typography
@@ -564,7 +564,7 @@ export default function ToolsPage() {
                         borderRadius: 3,
                         cursor: 'pointer',
                         border: 1,
-                        borderColor: isSelected ? 'primary.main' : isDark ? '#333' : '#e5e7eb',
+                        borderColor: isSelected ? 'primary.main' : isDark ? '#333' : '#dde2ee',
                         backgroundColor: isSelected
                           ? isDark
                             ? 'rgba(139, 92, 246, 0.25)'

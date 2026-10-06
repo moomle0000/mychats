@@ -187,9 +187,9 @@ export default function Sidebar({
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        backgroundColor: isDark ? '#171717' : '#f9f9f9',
+        backgroundColor: isDark ? '#171717' : '#eef1f7',
         borderRight: 1,
-        borderColor: isDark ? '#262626' : '#e5e5e5',
+        borderColor: isDark ? '#262626' : '#e3e7f0',
         p: 2,
         transition: 'all 0.2s ease',
       }}
@@ -199,7 +199,7 @@ export default function Sidebar({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <AutoAwesomeRoundedIcon
             sx={{
-              color: isDark ? '#8ab4f8' : '#1a73e8',
+              color: isDark ? '#8ab4f8' : '#4f46e5',
               fontSize: 22,
             }}
           />
@@ -208,7 +208,7 @@ export default function Sidebar({
             sx={{
               fontWeight: 700,
               letterSpacing: -0.3,
-              color: isDark ? '#f3f4f6' : '#1f2937',
+              color: isDark ? '#f3f4f6' : '#1b2030',
             }}
           >
             MyChats AI
@@ -233,9 +233,9 @@ export default function Sidebar({
           px: 2,
           borderRadius: 6,
           backgroundColor: isDark ? '#262626' : '#ffffff',
-          color: isDark ? '#ffffff' : '#111827',
+          color: isDark ? '#ffffff' : '#1b2030',
           border: 1,
-          borderColor: isDark ? '#404040' : '#e5e7eb',
+          borderColor: isDark ? '#404040' : '#dde2ee',
           boxShadow: isDark
             ? '0 1px 3px rgba(0,0,0,0.4)'
             : '0 1px 3px rgba(0,0,0,0.06)',
@@ -244,8 +244,8 @@ export default function Sidebar({
           fontSize: '0.875rem',
           mb: 2.5,
           '&:hover': {
-            backgroundColor: isDark ? '#333333' : '#f3f4f6',
-            borderColor: isDark ? '#525252' : '#d1d5db',
+            backgroundColor: isDark ? '#333333' : '#e4e8f1',
+            borderColor: isDark ? '#525252' : '#cdd3e0',
             boxShadow: isDark
               ? '0 2px 6px rgba(0,0,0,0.6)'
               : '0 2px 6px rgba(0,0,0,0.08)',
@@ -265,7 +265,7 @@ export default function Sidebar({
               textTransform: 'uppercase',
               letterSpacing: 0.8,
               fontSize: '0.6875rem',
-              color: isDark ? '#9ca3af' : '#6b7280',
+              color: isDark ? '#9ca3af' : '#5b6478',
             }}
           >
             Tools
@@ -325,7 +325,7 @@ export default function Sidebar({
                     color: isActive ? (isDark ? '#c4b5fd' : '#4f46e5') : 'inherit',
                     transition: 'all 0.15s ease',
                     '&:hover': {
-                      backgroundColor: isDark ? '#262626' : '#f3f4f6',
+                      backgroundColor: isDark ? '#262626' : '#e4e8f1',
                     },
                   }}
                 >
@@ -338,7 +338,7 @@ export default function Sidebar({
                           : '#6366f1'
                         : isDark
                         ? '#9ca3af'
-                        : '#6b7280',
+                        : '#5b6478',
                       flexShrink: 0,
                     }}
                   />
@@ -360,7 +360,7 @@ export default function Sidebar({
                       variant="caption"
                       sx={{
                         fontSize: '0.67rem',
-                        color: isDark ? '#9ca3af' : '#6b7280',
+                        color: isDark ? '#9ca3af' : '#5b6478',
                         display: 'block',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -400,14 +400,14 @@ export default function Sidebar({
                 color: activeConversationId === 'translator' ? (isDark ? '#c4b5fd' : '#4f46e5') : 'inherit',
                 transition: 'all 0.15s ease',
                 '&:hover': {
-                  backgroundColor: isDark ? '#262626' : '#f3f4f6',
+                  backgroundColor: isDark ? '#262626' : '#e4e8f1',
                 },
               }}
             >
               <TranslateRoundedIcon
                 sx={{
                   fontSize: 18,
-                  color: activeConversationId === 'translator' ? (isDark ? '#a78bfa' : '#6366f1') : isDark ? '#9ca3af' : '#6b7280',
+                  color: activeConversationId === 'translator' ? (isDark ? '#a78bfa' : '#6366f1') : isDark ? '#9ca3af' : '#5b6478',
                   flexShrink: 0,
                 }}
               />
@@ -426,7 +426,7 @@ export default function Sidebar({
                   variant="caption"
                   sx={{
                     fontSize: '0.67rem',
-                    color: isDark ? '#9ca3af' : '#6b7280',
+                    color: isDark ? '#9ca3af' : '#5b6478',
                     display: 'block',
                   }}
                 >
@@ -448,7 +448,7 @@ export default function Sidebar({
           textTransform: 'uppercase',
           letterSpacing: 0.8,
           fontSize: '0.6875rem',
-          color: isDark ? '#9ca3af' : '#6b7280',
+          color: isDark ? '#9ca3af' : '#5b6478',
         }}
       >
         Chats
@@ -480,11 +480,11 @@ export default function Sidebar({
               activeConversationId === 'live'
                 ? isDark
                   ? '#262626'
-                  : '#e5e7eb'
+                  : '#dde2ee'
                 : 'transparent',
-            color: activeConversationId === 'live' ? (isDark ? '#fff' : '#111827') : 'inherit',
+            color: activeConversationId === 'live' ? (isDark ? '#fff' : '#1b2030') : 'inherit',
             '&:hover': {
-              backgroundColor: isDark ? '#262626' : '#f3f4f6',
+              backgroundColor: isDark ? '#262626' : '#e4e8f1',
             },
           }}
         >
@@ -528,7 +528,7 @@ export default function Sidebar({
                   textTransform: 'uppercase',
                   letterSpacing: 0.8,
                   fontSize: '0.6875rem',
-                  color: isDark ? '#9ca3af' : '#6b7280',
+                  color: isDark ? '#9ca3af' : '#5b6478',
                 }}
               >
                 Recent Chats
@@ -549,10 +549,10 @@ export default function Sidebar({
                     py: 0.85,
                     borderRadius: 2.5,
                     cursor: 'pointer',
-                    backgroundColor: isActive ? (isDark ? '#262626' : '#e5e7eb') : 'transparent',
-                    color: isActive ? (isDark ? '#fff' : '#111827') : 'inherit',
+                    backgroundColor: isActive ? (isDark ? '#262626' : '#dde2ee') : 'transparent',
+                    color: isActive ? (isDark ? '#fff' : '#1b2030') : 'inherit',
                     '&:hover': {
-                      backgroundColor: isDark ? '#262626' : '#f3f4f6',
+                      backgroundColor: isDark ? '#262626' : '#e4e8f1',
                       '& .more-btn': { opacity: 1 },
                     },
                   }}
@@ -561,7 +561,7 @@ export default function Sidebar({
                     <ChatBubbleOutlineRoundedIcon
                       sx={{
                         fontSize: 18,
-                        color: isDark ? '#9ca3af' : '#6b7280',
+                        color: isDark ? '#9ca3af' : '#5b6478',
                         flexShrink: 0,
                       }}
                     />
@@ -573,7 +573,7 @@ export default function Sidebar({
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
                         fontSize: '0.825rem',
-                        color: isDark ? '#e5e7eb' : '#374151',
+                        color: isDark ? '#e5e7eb' : '#2f3646',
                       }}
                     >
                       {conv.title}
@@ -589,7 +589,7 @@ export default function Sidebar({
                       opacity: isActive ? 1 : 0,
                       transition: 'opacity 0.15s ease',
                       p: 0.25,
-                      color: isDark ? '#9ca3af' : '#6b7280',
+                      color: isDark ? '#9ca3af' : '#5b6478',
                     }}
                   >
                     <MoreHorizRoundedIcon fontSize="small" />
@@ -607,7 +607,7 @@ export default function Sidebar({
               p: 1.75,
               borderRadius: 3,
               backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
-              borderColor: isDark ? '#262626' : '#e5e5e5',
+              borderColor: isDark ? '#262626' : '#e3e7f0',
               display: 'flex',
               flexDirection: 'column',
               gap: 1,
@@ -642,7 +642,7 @@ export default function Sidebar({
         )}
       </Box>
 
-      <Divider sx={{ my: 1.5, borderColor: isDark ? '#262626' : '#e5e5e5' }} />
+      <Divider sx={{ my: 1.5, borderColor: isDark ? '#262626' : '#e3e7f0' }} />
 
       {/* Bottom Footer Section: Theme Toggle, Admin Link, User Profile */}
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
@@ -657,7 +657,7 @@ export default function Sidebar({
             py: 0.85,
             borderRadius: 2,
             cursor: 'pointer',
-            '&:hover': { backgroundColor: isDark ? '#262626' : '#f3f4f6' },
+            '&:hover': { backgroundColor: isDark ? '#262626' : '#e4e8f1' },
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
@@ -687,7 +687,7 @@ export default function Sidebar({
                 borderRadius: 2,
                 textDecoration: 'none',
                 color: 'inherit',
-                '&:hover': { backgroundColor: isDark ? '#262626' : '#f3f4f6' },
+                '&:hover': { backgroundColor: isDark ? '#262626' : '#e4e8f1' },
               }}
             >
               <AutoAwesomeRoundedIcon sx={{ fontSize: 18, color: '#8b5cf6' }} />
@@ -708,10 +708,10 @@ export default function Sidebar({
                 borderRadius: 2,
                 textDecoration: 'none',
                 color: 'inherit',
-                '&:hover': { backgroundColor: isDark ? '#262626' : '#f3f4f6' },
+                '&:hover': { backgroundColor: isDark ? '#262626' : '#e4e8f1' },
               }}
             >
-              <AdminPanelSettingsOutlinedIcon sx={{ fontSize: 18, color: isDark ? '#9ca3af' : '#6b7280' }} />
+              <AdminPanelSettingsOutlinedIcon sx={{ fontSize: 18, color: isDark ? '#9ca3af' : '#5b6478' }} />
               <Typography variant="body2" sx={{ fontSize: '0.825rem', fontWeight: 500 }}>
                 Admin Archive
               </Typography>
@@ -742,7 +742,7 @@ export default function Sidebar({
                   fontWeight: 600,
                   fontSize: '0.725rem',
                   display: 'block',
-                  color: isDark ? '#e5e7eb' : '#374151',
+                  color: isDark ? '#e5e7eb' : '#2f3646',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -754,7 +754,7 @@ export default function Sidebar({
                 variant="caption"
                 sx={{
                   fontSize: '0.62rem',
-                  color: isDark ? '#9ca3af' : '#6b7280',
+                  color: isDark ? '#9ca3af' : '#5b6478',
                   display: 'block',
                 }}
               >
@@ -767,7 +767,7 @@ export default function Sidebar({
             <IconButton
               size="small"
               onClick={() => setDeviceModalOpen(true)}
-              sx={{ p: 0.5, color: isDark ? '#9ca3af' : '#6b7280' }}
+              sx={{ p: 0.5, color: isDark ? '#9ca3af' : '#5b6478' }}
             >
               <EditRoundedIcon sx={{ fontSize: 14 }} />
             </IconButton>
@@ -829,7 +829,7 @@ export default function Sidebar({
             startIcon={<LoginRoundedIcon />}
             sx={{
               borderRadius: 2,
-              borderColor: isDark ? '#404040' : '#d1d5db',
+              borderColor: isDark ? '#404040' : '#cdd3e0',
               color: 'inherit',
               py: 0.75,
               fontSize: '0.8rem',
@@ -854,7 +854,7 @@ export default function Sidebar({
                 ? '0 8px 24px rgba(0,0,0,0.6)'
                 : '0 8px 24px rgba(0,0,0,0.12)',
               border: 1,
-              borderColor: isDark ? '#333' : '#e5e7eb',
+              borderColor: isDark ? '#333' : '#dde2ee',
             },
           },
         }}

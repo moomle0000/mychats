@@ -7,26 +7,27 @@ export const getAppTheme = (mode: 'light' | 'dark') => {
     palette: {
       mode,
       primary: {
-        main: isDark ? '#8ab4f8' : '#1a73e8',
-        light: isDark ? '#aecbfa' : '#4285f4',
-        dark: isDark ? '#669df6' : '#174ea6',
+        main: isDark ? '#8ab4f8' : '#4f46e5',
+        light: isDark ? '#aecbfa' : '#6366f1',
+        dark: isDark ? '#669df6' : '#4338ca',
         contrastText: isDark ? '#041e49' : '#ffffff',
       },
       secondary: {
-        main: isDark ? '#c58af9' : '#9334e6',
+        main: isDark ? '#c58af9' : '#7c3aed',
       },
+      ...(isDark ? {} : { error: { main: '#dc2626' }, success: { main: '#059669' } }),
       background: {
-        default: isDark ? '#131314' : '#f8f9fa',
+        default: isDark ? '#131314' : '#f7f8fc',
         paper: isDark ? '#1e1f20' : '#ffffff',
       },
       text: {
-        primary: isDark ? '#e8eaed' : '#202124',
-        secondary: isDark ? '#9aa0a6' : '#5f6368',
+        primary: isDark ? '#e8eaed' : '#1b2030',
+        secondary: isDark ? '#9aa0a6' : '#5b6478',
       },
-      divider: isDark ? '#3c4043' : '#dadce0',
+      divider: isDark ? '#3c4043' : '#e3e7f0',
       action: {
-        hover: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.04)',
-        selected: isDark ? 'rgba(138, 180, 248, 0.16)' : 'rgba(26, 115, 232, 0.08)',
+        hover: isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(27, 32, 48, 0.05)',
+        selected: isDark ? 'rgba(138, 180, 248, 0.16)' : 'rgba(79, 70, 229, 0.10)',
       },
     },
     shape: {
@@ -34,6 +35,8 @@ export const getAppTheme = (mode: 'light' | 'dark') => {
     },
     typography: {
       fontFamily: [
+        'var(--font-inter)',
+        'Inter',
         '-apple-system',
         'BlinkMacSystemFont',
         '"Segoe UI"',
@@ -73,8 +76,8 @@ export const getAppTheme = (mode: 'light' | 'dark') => {
       MuiCard: {
         styleOverrides: {
           root: {
-            border: `1px solid ${isDark ? '#3c4043' : '#e0e0e0'}`,
-            boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.35)' : '0 2px 12px rgba(0,0,0,0.06)',
+            border: `1px solid ${isDark ? '#3c4043' : '#e3e7f0'}`,
+            boxShadow: isDark ? '0 4px 20px rgba(0,0,0,0.35)' : '0 2px 12px rgba(27,32,48,0.06)',
           },
         },
       },
@@ -88,13 +91,13 @@ export const getAppTheme = (mode: 'light' | 'dark') => {
           root: {
             borderRadius: 12,
             '& fieldset': {
-              borderColor: isDark ? '#3c4043' : '#dadce0',
+              borderColor: isDark ? '#3c4043' : '#e3e7f0',
             },
             '&:hover fieldset': {
-              borderColor: isDark ? '#5f6368' : '#bdc1c6',
+              borderColor: isDark ? '#5f6368' : '#cdd3e0',
             },
             '&.Mui-focused fieldset': {
-              borderColor: isDark ? '#8ab4f8' : '#1a73e8',
+              borderColor: isDark ? '#8ab4f8' : '#4f46e5',
             },
           },
         },

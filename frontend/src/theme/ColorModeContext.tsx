@@ -24,11 +24,10 @@ export function ColorModeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Dark is the default theme; only switch to light if the user explicitly chose it
     const saved = localStorage.getItem('chat_theme_mode') as 'light' | 'dark' | null;
     if (saved === 'light' || saved === 'dark') {
       setMode(saved);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-      setMode('light');
     }
     setMounted(true);
   }, []);
@@ -52,6 +51,13 @@ export function ColorModeProvider({ children }: { children: React.ReactNode }) {
   );
 
   const theme = useMemo(() => getAppTheme(mode), [mode]);
+
+  // Mirror mode onto <html data-theme> so globals.css can set body colors with higher
+  // specificity than the (possibly stale, SSR-injected dark) CssBaseline body rule.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', mode);
+    document.documentElement.style.colorScheme = mode;
+  }, [mode]);
 
   return (
     <ColorModeContext.Provider value={colorMode}>

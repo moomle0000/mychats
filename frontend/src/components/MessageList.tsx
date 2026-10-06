@@ -191,12 +191,12 @@ export default function MessageList({
                           fontSize: '0.68rem',
                           fontWeight: 500,
                           backgroundColor: (theme) =>
-                            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.06)',
+                            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(27, 32, 48, 0.07)',
                           color: 'text.secondary',
                           borderRadius: '6px',
                           border: 1,
                           borderColor: (theme) =>
-                            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(27, 32, 48, 0.08)',
                           '& .MuiChip-label': { px: 0.7 },
                         }}
                       />
@@ -236,19 +236,19 @@ export default function MessageList({
                   borderRadius: 3,
                   backgroundColor: (theme) => {
                     if (isSenderMe) {
-                      return theme.palette.mode === 'dark' ? '#1a4971' : '#e8f0fe';
+                      return theme.palette.mode === 'dark' ? '#1a4971' : '#e5e7ff';
                     }
                     if (isAI) {
                       return theme.palette.mode === 'dark' ? 'rgba(139, 92, 246, 0.12)' : 'rgba(99, 102, 241, 0.08)';
                     }
-                    return theme.palette.mode === 'dark' ? '#2d2f31' : '#f1f3f4';
+                    return theme.palette.mode === 'dark' ? '#2d2f31' : '#eceff6';
                   },
                   border: 1,
                   borderColor: (theme) => {
                     if (isAI) {
                       return theme.palette.mode === 'dark' ? 'rgba(139, 92, 246, 0.4)' : 'rgba(99, 102, 241, 0.25)';
                     }
-                    return theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+                    return theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(27,32,48,0.07)';
                   },
                   maxWidth: '100%',
                   minWidth: 0,
