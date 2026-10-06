@@ -121,18 +121,26 @@ export default function Sidebar({
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
   const [newDeviceLabel, setNewDeviceLabel] = useState('');
 
-  // Sorted conversations: pinned items first, then chronological
-  const sortedConversations = React.useMemo(() => {
-    return [...conversations].sort((a, b) => {
-      const aPinned = Boolean(a.isPinned);
-      const bPinned = Boolean(b.isPinned);
-      if (aPinned !== bPinned) {
-        return aPinned ? -1 : 1;
-      }
-      const timeA = new Date(a.archivedAt || a.createdAt).getTime();
-      const timeB = new Date(b.archivedAt || b.createdAt).getTime();
-      return timeB - timeA;
-    });
+  // Pinned conversations (sorted chronologically)
+  const pinnedConversations = React.useMemo(() => {
+    return conversations
+      .filter((c) => Boolean(c.isPinned))
+      .sort((a, b) => {
+        const timeA = new Date(a.archivedAt || a.createdAt).getTime();
+        const timeB = new Date(b.archivedAt || b.createdAt).getTime();
+        return timeB - timeA;
+      });
+  }, [conversations]);
+
+  // Unpinned / Recent conversations (sorted chronologically)
+  const recentConversations = React.useMemo(() => {
+    return conversations
+      .filter((c) => !c.isPinned)
+      .sort((a, b) => {
+        const timeA = new Date(a.archivedAt || a.createdAt).getTime();
+        const timeB = new Date(b.archivedAt || b.createdAt).getTime();
+        return timeB - timeA;
+      });
   }, [conversations]);
 
   React.useEffect(() => {
@@ -715,10 +723,102 @@ export default function Sidebar({
           </Box>
         </Box>
 
-        {/* If user is logged in: SHOW RECENT CHATS ARCHIVES */}
+        {/* If user is logged in: SHOW PINNED & RECENT CHATS ARCHIVES */}
         {user ? (
           <>
-            {conversations.length > 0 && (
+            {/* 1. DEDICATED PINNED SECTION (At the top of archived chats) */}
+            {pinnedConversations.length > 0 && (
+              <>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, px: 1, pt: 1.5, pb: 0.5 }}>
+                  <PushPinRoundedIcon
+                    sx={{
+                      fontSize: 13,
+                      color: isDark ? '#818cf8' : '#4f46e5',
+                      transform: 'rotate(45deg)',
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.8,
+                      fontSize: '0.6875rem',
+                      color: isDark ? '#818cf8' : '#4f46e5',
+                    }}
+                  >
+                    Pinned
+                  </Typography>
+                </Box>
+
+                {pinnedConversations.map((conv) => {
+                  const isActive = activeConversationId === conv._id;
+                  return (
+                    <Box
+                      key={conv._id}
+                      onClick={() => onSelectConversation(conv._id)}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        px: 1.5,
+                        py: 0.85,
+                        borderRadius: 2.5,
+                        cursor: 'pointer',
+                        backgroundColor: isActive ? (isDark ? '#262626' : '#dde2ee') : 'transparent',
+                        color: isActive ? (isDark ? '#fff' : '#1b2030') : 'inherit',
+                        '&:hover': {
+                          backgroundColor: isDark ? '#262626' : '#e4e8f1',
+                          '& .more-btn': { opacity: 1 },
+                        },
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, flex: 1 }}>
+                        <PushPinRoundedIcon
+                          sx={{
+                            fontSize: 16,
+                            color: isDark ? '#818cf8' : '#4f46e5',
+                            flexShrink: 0,
+                            transform: 'rotate(45deg)',
+                          }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: isActive ? 600 : 500,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: '0.825rem',
+                            color: isDark ? '#e5e7eb' : '#2f3646',
+                          }}
+                        >
+                          {conv.title}
+                        </Typography>
+                      </Box>
+
+                      {/* 3-dots actions trigger */}
+                      <IconButton
+                        className="more-btn"
+                        size="small"
+                        onClick={(e) => handleOpenMenu(e, conv)}
+                        sx={{
+                          opacity: isActive ? 1 : 0,
+                          transition: 'opacity 0.15s ease',
+                          p: 0.25,
+                          color: isDark ? '#9ca3af' : '#5b6478',
+                        }}
+                      >
+                        <MoreHorizRoundedIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                  );
+                })}
+              </>
+            )}
+
+            {/* 2. RECENT CHATS SECTION (Exclusively unpinned conversations) */}
+            {recentConversations.length > 0 && (
               <Typography
                 variant="caption"
                 sx={{
@@ -736,7 +836,7 @@ export default function Sidebar({
               </Typography>
             )}
 
-            {sortedConversations.map((conv) => {
+            {recentConversations.map((conv) => {
               const isActive = activeConversationId === conv._id;
               return (
                 <Box
@@ -759,28 +859,17 @@ export default function Sidebar({
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, flex: 1 }}>
-                    {conv.isPinned ? (
-                      <PushPinRoundedIcon
-                        sx={{
-                          fontSize: 16,
-                          color: isDark ? '#818cf8' : '#4f46e5',
-                          flexShrink: 0,
-                          transform: 'rotate(45deg)',
-                        }}
-                      />
-                    ) : (
-                      <ChatBubbleOutlineRoundedIcon
-                        sx={{
-                          fontSize: 18,
-                          color: isDark ? '#9ca3af' : '#5b6478',
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
+                    <ChatBubbleOutlineRoundedIcon
+                      sx={{
+                        fontSize: 18,
+                        color: isDark ? '#9ca3af' : '#5b6478',
+                        flexShrink: 0,
+                      }}
+                    />
                     <Typography
                       variant="body2"
                       sx={{
-                        fontWeight: isActive ? 600 : conv.isPinned ? 500 : 400,
+                        fontWeight: isActive ? 600 : 400,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
