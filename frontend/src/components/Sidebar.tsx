@@ -121,6 +121,16 @@ export default function Sidebar({
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
   const [newDeviceLabel, setNewDeviceLabel] = useState('');
 
+  // Tools collapsible state (expanded by default on mobile so all tools are immediately visible)
+  const [toolsExpanded, setToolsExpanded] = useState(isMobile);
+
+  // Sync toolsExpanded with isMobile when screen size changes
+  React.useEffect(() => {
+    if (isMobile) {
+      setToolsExpanded(true);
+    }
+  }, [isMobile]);
+
   // Pinned conversations (sorted chronologically)
   const pinnedConversations = React.useMemo(() => {
     return conversations
@@ -293,7 +303,7 @@ export default function Sidebar({
         New chat
       </Button>
 
-      {/* Collapsible Tools Section: Compact pill/preview when idle, expands smoothly on hover */}
+      {/* Collapsible Tools Section: Accessible on both mobile and desktop */}
       <Box
         sx={{
           mb: 1.5,
@@ -302,13 +312,22 @@ export default function Sidebar({
           borderColor: (theme) =>
             theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(27, 32, 48, 0.08)',
           backgroundColor: (theme) =>
-            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(27, 32, 48, 0.02)',
+            toolsExpanded
+              ? theme.palette.mode === 'dark'
+                ? 'rgba(255, 255, 255, 0.04)'
+                : 'rgba(255, 255, 255, 0.95)'
+              : theme.palette.mode === 'dark'
+              ? 'rgba(255, 255, 255, 0.02)'
+              : 'rgba(27, 32, 48, 0.02)',
+          boxShadow: toolsExpanded
+            ? (theme) =>
+                theme.palette.mode === 'dark' ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 16px rgba(27,32,48,0.06)'
+            : 'none',
           transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden',
-          // Collapsed state default: compact height
-          maxHeight: 44,
+          maxHeight: toolsExpanded ? 480 : 44,
           '&:hover, &:focus-within': {
-            maxHeight: 380,
+            maxHeight: 480,
             backgroundColor: (theme) =>
               theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.95)',
             boxShadow: (theme) =>
@@ -326,8 +345,9 @@ export default function Sidebar({
           },
         }}
       >
-        {/* Header bar that serves as hover anchor */}
+        {/* Header bar that toggles on click and acts as hover anchor */}
         <Box
+          onClick={() => setToolsExpanded((prev) => !prev)}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -379,6 +399,7 @@ export default function Sidebar({
                   component={Link}
                   href="/tools"
                   size="small"
+                  onClick={(e) => e.stopPropagation()}
                   sx={{
                     p: 0.25,
                     color: isDark ? '#a78bfa' : '#6366f1',
@@ -397,12 +418,13 @@ export default function Sidebar({
                 fontSize: 16,
                 color: 'text.secondary',
                 transition: 'transform 0.25s ease',
+                transform: toolsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
               }}
             />
           </Box>
         </Box>
 
-        {/* Collapsible Content: Expands on hover */}
+        {/* Collapsible Content: Fully accessible on click & hover */}
         <Box
           className="tools-collapse-content"
           sx={{
@@ -412,11 +434,11 @@ export default function Sidebar({
             px: 1,
             pb: 1,
             pt: 0.25,
-            opacity: 0,
-            transform: 'translateY(-4px)',
+            opacity: toolsExpanded ? 1 : 0,
+            transform: toolsExpanded ? 'translateY(0)' : 'translateY(-4px)',
             transition: 'all 0.2s ease',
-            pointerEvents: 'none',
-            maxHeight: 320,
+            pointerEvents: toolsExpanded ? 'auto' : 'none',
+            maxHeight: 420,
             overflowY: 'auto',
           }}
         >
@@ -502,16 +524,91 @@ export default function Sidebar({
 
           {/* 2. Custom Tools and Technical Translator */}
           {tools && tools.length > 0 ? (
-            tools.map((tool) => {
-              const isActive =
-                activeConversationId === tool._id ||
-                (tool.name === 'Technical Translator' && activeConversationId === 'translator');
-              const IconComp = getSidebarToolIcon(tool.icon);
+            <>
+              {tools.map((tool) => {
+                const isActive =
+                  activeConversationId === tool._id ||
+                  (tool.name === 'Technical Translator' && activeConversationId === 'translator');
+                const IconComp = getSidebarToolIcon(tool.icon);
 
-              return (
+                return (
+                  <Box
+                    key={tool._id}
+                    onClick={() => onSelectConversation(tool._id)}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.25,
+                      px: 1.5,
+                      py: 0.85,
+                      borderRadius: 2.5,
+                      cursor: 'pointer',
+                      backgroundColor: isActive
+                        ? isDark
+                          ? 'rgba(139, 92, 246, 0.22)'
+                          : 'rgba(99, 102, 241, 0.12)'
+                        : 'transparent',
+                      border: 1,
+                      borderColor: isActive
+                        ? isDark
+                          ? 'rgba(167, 139, 250, 0.45)'
+                          : 'rgba(99, 102, 241, 0.35)'
+                        : 'transparent',
+                      color: isActive ? (isDark ? '#c4b5fd' : '#4f46e5') : 'inherit',
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        backgroundColor: isDark ? '#262626' : '#e4e8f1',
+                      },
+                    }}
+                  >
+                    <IconComp
+                      sx={{
+                        fontSize: 18,
+                        color: isActive
+                          ? isDark
+                            ? '#a78bfa'
+                            : '#6366f1'
+                          : isDark
+                          ? '#9ca3af'
+                          : '#5b6478',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: isActive ? 700 : 500,
+                          fontSize: '0.825rem',
+                          lineHeight: 1.2,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {tool.name}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '0.67rem',
+                          color: isDark ? '#9ca3af' : '#5b6478',
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {tool.description || 'AI Tool'}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              })}
+
+              {!tools.some((t) => t.name === 'Technical Translator') && (
                 <Box
-                  key={tool._id}
-                  onClick={() => onSelectConversation(tool._id)}
+                  onClick={() => onSelectConversation('translator')}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -520,34 +617,30 @@ export default function Sidebar({
                     py: 0.85,
                     borderRadius: 2.5,
                     cursor: 'pointer',
-                    backgroundColor: isActive
-                      ? isDark
-                        ? 'rgba(139, 92, 246, 0.22)'
-                        : 'rgba(99, 102, 241, 0.12)'
-                      : 'transparent',
+                    backgroundColor:
+                      activeConversationId === 'translator'
+                        ? isDark
+                          ? 'rgba(139, 92, 246, 0.22)'
+                          : 'rgba(99, 102, 241, 0.12)'
+                        : 'transparent',
                     border: 1,
-                    borderColor: isActive
-                      ? isDark
-                        ? 'rgba(167, 139, 250, 0.45)'
-                        : 'rgba(99, 102, 241, 0.35)'
-                      : 'transparent',
-                    color: isActive ? (isDark ? '#c4b5fd' : '#4f46e5') : 'inherit',
+                    borderColor:
+                      activeConversationId === 'translator'
+                        ? isDark
+                          ? 'rgba(167, 139, 250, 0.45)'
+                          : 'rgba(99, 102, 241, 0.35)'
+                        : 'transparent',
+                    color: activeConversationId === 'translator' ? (isDark ? '#c4b5fd' : '#4f46e5') : 'inherit',
                     transition: 'all 0.15s ease',
                     '&:hover': {
                       backgroundColor: isDark ? '#262626' : '#e4e8f1',
                     },
                   }}
                 >
-                  <IconComp
+                  <TranslateRoundedIcon
                     sx={{
                       fontSize: 18,
-                      color: isActive
-                        ? isDark
-                          ? '#a78bfa'
-                          : '#6366f1'
-                        : isDark
-                        ? '#9ca3af'
-                        : '#5b6478',
+                      color: activeConversationId === 'translator' ? (isDark ? '#a78bfa' : '#6366f1') : isDark ? '#9ca3af' : '#5b6478',
                       flexShrink: 0,
                     }}
                   />
@@ -555,15 +648,12 @@ export default function Sidebar({
                     <Typography
                       variant="body2"
                       sx={{
-                        fontWeight: isActive ? 700 : 500,
+                        fontWeight: activeConversationId === 'translator' ? 700 : 500,
                         fontSize: '0.825rem',
                         lineHeight: 1.2,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {tool.name}
+                      Technical Translator
                     </Typography>
                     <Typography
                       variant="caption"
@@ -571,17 +661,14 @@ export default function Sidebar({
                         fontSize: '0.67rem',
                         color: isDark ? '#9ca3af' : '#5b6478',
                         display: 'block',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
                       }}
                     >
-                      {tool.description || 'AI Tool'}
+                      Arabic ➔ AI Prompt
                     </Typography>
                   </Box>
                 </Box>
-              );
-            })
+              )}
+            </>
           ) : (
             <Box
               onClick={() => onSelectConversation('translator')}
