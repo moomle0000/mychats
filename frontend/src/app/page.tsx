@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import ChatToolbar from '@/components/ChatToolbar';
 import MessageList from '@/components/MessageList';
 import ChatBox, { InputMode } from '@/components/ChatBox';
+import TodoView from '@/components/TodoView';
 import { api, Message, Conversation, User, AITool } from '@/lib/api';
 import { useSSE } from '@/hooks/useSSE';
 import { TRANSLATOR_SYSTEM_PROMPT } from '@/lib/constants';
@@ -143,6 +144,11 @@ export default function ChatPage() {
   // Load messages for currently active conversation
   // Load messages for currently active conversation
   const loadMessages = useCallback(async (convId: string) => {
+    if (convId === 'todo') {
+      setActiveTitle('My Tasks');
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await api.getMessages(convId, 100);
@@ -374,13 +380,15 @@ export default function ChatPage() {
             flexDirection: 'column',
             overflow: 'hidden',
             width: '100%',
-            maxWidth: { sm: '70%', xs: '100%' },
+            maxWidth: activeConversationId === 'todo' ? '100%' : { sm: '70%', xs: '100%' },
             minHeight: 0,
             minWidth: 0,
             mx: 'auto',
           }}
         >
-          {loading ? (
+          {activeConversationId === 'todo' ? (
+            <TodoView onBackToChat={() => setActiveConversationId('live')} />
+          ) : loading ? (
             <Box
               sx={{
                 display: 'flex',

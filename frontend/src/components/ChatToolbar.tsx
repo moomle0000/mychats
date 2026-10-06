@@ -255,11 +255,23 @@ export default function ChatToolbar({
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 } }}>
             {!isLive && !isTool && onNewChat && (
               <Button
-                variant="contained"
+                variant="outlined"
                 size="small"
-                startIcon={<AddRoundedIcon />}
+                startIcon={<AddRoundedIcon sx={{ fontSize: '14px !important' }} />}
                 onClick={onNewChat}
-                sx={{ borderRadius: 5, fontSize: '0.785rem' }}
+                sx={{
+                  borderRadius: 5,
+                  fontSize: '0.725rem',
+                  fontWeight: 600,
+                  py: 0.25,
+                  px: { xs: 1, sm: 1.25 },
+                  height: 24,
+                  minHeight: 24,
+                  whiteSpace: 'nowrap',
+                  textTransform: 'none',
+                  lineHeight: 1,
+                  '& .MuiButton-startIcon': { mr: 0.5, ml: -0.25 },
+                }}
               >
                 Return to Live
               </Button>

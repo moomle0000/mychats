@@ -60,6 +60,40 @@ export interface AITool {
   updatedAt?: string;
 }
 
+export type TodoPriority = 'low' | 'medium' | 'high' | 'urgent';
+export type TodoStatus = 'pending' | 'in_progress' | 'completed';
+
+export interface Subtask {
+  _id?: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface Todo {
+  _id: string;
+  title: string;
+  description?: string;
+  status: TodoStatus;
+  priority: TodoPriority;
+  tags: string[];
+  dueDate?: string | null;
+  subtasks: Subtask[];
+  deviceId?: string;
+  userId?: string | null;
+  sourceMessageId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AIParsedTaskItem {
+  title: string;
+  description?: string;
+  priority: TodoPriority;
+  tags: string[];
+  subtasks: Array<{ title: string; completed: boolean }>;
+  dueDate?: string | null;
+}
+
 const AUTH_TOKEN_KEY = 'chat_auth_token';
 
 export const getAuthToken = (): string | null => {
@@ -346,5 +380,44 @@ export const api = {
 
   async deleteTool(id: string): Promise<{ data: { deleted: boolean; id: string } }> {
     return request(`/api/tools/${id}`, { method: 'DELETE' });
+  },
+
+  // Todos API
+  async getTodos(params?: { status?: string; priority?: string; search?: string }): Promise<{ data: Todo[] }> {
+    const query = new URLSearchParams();
+    if (params?.status) query.set('status', params.status);
+    if (params?.priority) query.set('priority', params.priority);
+    if (params?.search) query.set('search', params.search);
+    const qs = query.toString();
+    return request(`/api/todos${qs ? `?${qs}` : ''}`);
+  },
+
+  async createTodo(payload: Partial<Todo>): Promise<{ data: Todo }> {
+    return request('/api/todos', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateTodo(id: string, payload: Partial<Todo>): Promise<{ data: Todo }> {
+    return request(`/api/todos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deleteTodo(id: string): Promise<{ message: string }> {
+    return request(`/api/todos/${id}`, { method: 'DELETE' });
+  },
+
+  async clearCompletedTodos(): Promise<{ count: number; message: string }> {
+    return request('/api/todos/completed/clear', { method: 'DELETE' });
+  },
+
+  async aiParseTasks(text: string): Promise<{ data: AIParsedTaskItem[] }> {
+    return request('/api/todos/ai-parse', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
   },
 };

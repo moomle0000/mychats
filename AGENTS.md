@@ -85,12 +85,12 @@ To minimize token usage and accelerate task completion, agents MUST adhere to:
 ## 4. Quick Verification Commands
 
 ```powershell
-# Check backend TypeScript & build
-cd backend; npm run build
+# Fast type-check backend (no full build, safe to run while app is live)
+cd backend; npx tsc --noEmit
 
-# Check frontend TypeScript & build
-cd frontend; npm run build
+# Fast type-check frontend (no full build, safe to run while app is live)
+cd frontend; npx tsc --noEmit
 
-# Check running ports
+# Check running ports (read-only, never kills the running app)
 Get-NetTCPConnection -LocalPort 5223, 3000 -ErrorAction SilentlyContinue | Select-Object LocalPort, State, OwningProcess
 ```

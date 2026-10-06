@@ -21,8 +21,9 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
+import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
 import MarkdownRenderer from './MarkdownRenderer';
-import { BACKEND_URL, Message } from '@/lib/api';
+import { BACKEND_URL, Message, api } from '@/lib/api';
 
 interface MessageListProps {
   messages: Message[];
@@ -45,6 +46,46 @@ export default function MessageList({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [taskSuccessMsg, setTaskSuccessMsg] = useState<string | null>(null);
+  const [convertingTaskId, setConvertingTaskId] = useState<string | null>(null);
+
+  const handleCreateTaskFromMessage = async (msg: Message) => {
+    if (!msg.text) return;
+    try {
+      setConvertingTaskId(msg._id);
+      const parsed = await api.aiParseTasks(msg.text);
+      const tasks = parsed.data || [];
+      if (tasks.length > 0) {
+        for (const t of tasks) {
+          await api.createTodo({
+            title: t.title,
+            description: t.description || `From chat (${msg.senderName})`,
+            priority: t.priority,
+            tags: t.tags,
+            subtasks: t.subtasks,
+            dueDate: t.dueDate,
+            sourceMessageId: msg._id,
+            status: 'pending',
+          });
+        }
+        setTaskSuccessMsg(`Created ${tasks.length} task(s) in My Tasks!`);
+      } else {
+        await api.createTodo({
+          title: msg.text.slice(0, 80),
+          description: msg.text,
+          priority: 'medium',
+          sourceMessageId: msg._id,
+          status: 'pending',
+        });
+        setTaskSuccessMsg('Created task in My Tasks!');
+      }
+      setTimeout(() => setTaskSuccessMsg(null), 3500);
+    } catch (err: any) {
+      alert(`Failed to create task from message: ${err?.message || 'Error'}`);
+    } finally {
+      setConvertingTaskId(null);
+    }
+  };
 
   const handleCopy = async (id: string, text: string) => {
     try {
@@ -207,24 +248,46 @@ export default function MessageList({
                   {formatTime(msg.createdAt)}
                 </Typography>
 
-                {/* Hover Delete Action Button */}
-                {onDeleteMessage && !isReadOnly && (
-                  <Tooltip title="Delete message">
-                    <IconButton
-                      className="msg-actions"
-                      size="small"
-                      onClick={() => setDeleteConfirmId(msg._id)}
-                      sx={{
-                        opacity: 0,
-                        transition: 'opacity 0.15s ease',
-                        p: 0.25,
-                        color: 'text.secondary',
-                        '&:hover': { color: 'error.main' },
-                      }}
-                    >
-                      <DeleteOutlineRoundedIcon sx={{ fontSize: 15 }} />
-                    </IconButton>
-                  </Tooltip>
+                {/* Hover Action Buttons: Add to Tasks & Delete */}
+                {!isReadOnly && (
+                  <Box className="msg-actions" sx={{ display: 'flex', alignItems: 'center', opacity: 0, transition: 'opacity 0.15s ease' }}>
+                    {msg.text && (
+                      <Tooltip title="Convert to Task (AI)">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleCreateTaskFromMessage(msg)}
+                          disabled={convertingTaskId === msg._id}
+                          sx={{
+                            p: 0.25,
+                            color: 'text.secondary',
+                            '&:hover': { color: '#10b981' },
+                          }}
+                        >
+                          {convertingTaskId === msg._id ? (
+                            <CircularProgress size={13} sx={{ color: '#10b981' }} />
+                          ) : (
+                            <TaskAltRoundedIcon sx={{ fontSize: 14 }} />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    )}
+
+                    {onDeleteMessage && (
+                      <Tooltip title="Delete message">
+                        <IconButton
+                          size="small"
+                          onClick={() => setDeleteConfirmId(msg._id)}
+                          sx={{
+                            p: 0.25,
+                            color: 'text.secondary',
+                            '&:hover': { color: 'error.main' },
+                          }}
+                        >
+                          <DeleteOutlineRoundedIcon sx={{ fontSize: 15 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 )}
               </Box>
 
@@ -437,6 +500,33 @@ export default function MessageList({
           )}
         </Box>
       </Dialog>
+
+      {/* Task Creation Notification Snackbar */}
+      {taskSuccessMsg && (
+        <Paper
+          elevation={4}
+          sx={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 9999,
+            px: 2,
+            py: 1,
+            borderRadius: 2,
+            backgroundColor: '#10b981',
+            color: '#ffffff',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            boxShadow: '0 4px 20px rgba(16, 185, 129, 0.4)',
+          }}
+        >
+          <TaskAltRoundedIcon sx={{ fontSize: 18 }} />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {taskSuccessMsg}
+          </Typography>
+        </Paper>
+      )}
     </Box>
   );
 }

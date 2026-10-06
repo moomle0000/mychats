@@ -43,6 +43,8 @@ import StorageRoundedIcon from '@mui/icons-material/StorageRounded';
 import SecurityRoundedIcon from '@mui/icons-material/SecurityRounded';
 import BuildRoundedIcon from '@mui/icons-material/BuildRounded';
 import DevicesRoundedIcon from '@mui/icons-material/DevicesRounded';
+import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import { Conversation, User, AITool, api, getOrCreateDeviceId, getDeviceLabel, setDeviceLabel } from '@/lib/api';
 import { useColorMode } from '@/theme/ColorModeContext';
 import Link from 'next/link';
@@ -255,43 +257,214 @@ export default function Sidebar({
         New chat
       </Button>
 
-      {/* Tools Section (Under "+ New chat" button) */}
-      <Box sx={{ mb: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 1, pb: 0.75 }}>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: 0.8,
-              fontSize: '0.6875rem',
-              color: isDark ? '#9ca3af' : '#5b6478',
-            }}
-          >
-            Tools
-          </Typography>
+      {/* Collapsible Tools Section: Compact pill/preview when idle, expands smoothly on hover */}
+      <Box
+        sx={{
+          mb: 1.5,
+          borderRadius: 2.5,
+          border: 1,
+          borderColor: (theme) =>
+            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(27, 32, 48, 0.08)',
+          backgroundColor: (theme) =>
+            theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.02)' : 'rgba(27, 32, 48, 0.02)',
+          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          // Collapsed state default: compact height
+          maxHeight: 44,
+          '&:hover, &:focus-within': {
+            maxHeight: 380,
+            backgroundColor: (theme) =>
+              theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.95)',
+            boxShadow: (theme) =>
+              theme.palette.mode === 'dark' ? '0 4px 16px rgba(0,0,0,0.4)' : '0 4px 16px rgba(27,32,48,0.06)',
+            borderColor: (theme) =>
+              theme.palette.mode === 'dark' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(99, 102, 241, 0.25)',
+            '& .tools-collapse-content': {
+              opacity: 1,
+              transform: 'translateY(0)',
+              pointerEvents: 'auto',
+            },
+            '& .tools-header-chevron': {
+              transform: 'rotate(180deg)',
+            },
+          },
+        }}
+      >
+        {/* Header bar that serves as hover anchor */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: 1.25,
+            py: 1,
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <AutoAwesomeRoundedIcon
+              sx={{
+                fontSize: 15,
+                color: (theme) => (theme.palette.mode === 'dark' ? '#a78bfa' : '#6366f1'),
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+                fontSize: '0.7rem',
+                color: isDark ? '#e5e7eb' : '#1b2030',
+              }}
+            >
+              Tools &amp; AI
+            </Typography>
+            <Chip
+              label={1 + (tools?.length || 1)}
+              size="small"
+              sx={{
+                height: 16,
+                fontSize: '0.625rem',
+                fontWeight: 700,
+                backgroundColor: (theme) =>
+                  theme.palette.mode === 'dark' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(99, 102, 241, 0.12)',
+                color: (theme) => (theme.palette.mode === 'dark' ? '#c4b5fd' : '#4f46e5'),
+                '& .MuiChip-label': { px: 0.5 },
+              }}
+            />
+          </Box>
 
-          {user && (
-            <Tooltip title="AI Tools Studio (Create & Manage)">
-              <IconButton
-                component={Link}
-                href="/tools"
-                size="small"
-                sx={{
-                  p: 0.25,
-                  color: isDark ? '#a78bfa' : '#6366f1',
-                  '&:hover': {
-                    backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(99, 102, 241, 0.1)',
-                  },
-                }}
-              >
-                <AddRoundedIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
-          )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {user && (
+              <Tooltip title="AI Tools Studio (Create & Manage)">
+                <IconButton
+                  component={Link}
+                  href="/tools"
+                  size="small"
+                  sx={{
+                    p: 0.25,
+                    color: isDark ? '#a78bfa' : '#6366f1',
+                    '&:hover': {
+                      backgroundColor: isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(99, 102, 241, 0.1)',
+                    },
+                  }}
+                >
+                  <AddRoundedIcon sx={{ fontSize: 15 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+            <ExpandMoreRoundedIcon
+              className="tools-header-chevron"
+              sx={{
+                fontSize: 16,
+                color: 'text.secondary',
+                transition: 'transform 0.25s ease',
+              }}
+            />
+          </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+        {/* Collapsible Content: Expands on hover */}
+        <Box
+          className="tools-collapse-content"
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 0.5,
+            px: 1,
+            pb: 1,
+            pt: 0.25,
+            opacity: 0,
+            transform: 'translateY(-4px)',
+            transition: 'all 0.2s ease',
+            pointerEvents: 'none',
+            maxHeight: 320,
+            overflowY: 'auto',
+          }}
+        >
+          {/* 1. Dedicated "My Tasks" (Todo) Button */}
+          <Box
+            onClick={() => onSelectConversation('todo')}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
+              px: 1.25,
+              py: 0.85,
+              borderRadius: 2,
+              cursor: 'pointer',
+              backgroundColor:
+                activeConversationId === 'todo'
+                  ? isDark
+                    ? 'rgba(16, 185, 129, 0.2)'
+                    : 'rgba(5, 150, 105, 0.12)'
+                  : 'transparent',
+              border: 1,
+              borderColor:
+                activeConversationId === 'todo'
+                  ? isDark
+                    ? 'rgba(16, 185, 129, 0.45)'
+                    : 'rgba(5, 150, 105, 0.3)'
+                  : 'transparent',
+              color: activeConversationId === 'todo' ? (isDark ? '#6ee7b7' : '#059669') : 'inherit',
+              transition: 'all 0.15s ease',
+              '&:hover': {
+                backgroundColor: isDark ? '#262626' : '#e4e8f1',
+              },
+            }}
+          >
+            <TaskAltRoundedIcon
+              sx={{
+                fontSize: 18,
+                color: activeConversationId === 'todo' ? (isDark ? '#34d399' : '#059669') : '#10b981',
+                flexShrink: 0,
+              }}
+            />
+            <Box sx={{ minWidth: 0, flex: 1 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: activeConversationId === 'todo' ? 700 : 600,
+                    fontSize: '0.825rem',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  My Tasks
+                </Typography>
+                <Chip
+                  label="Todo"
+                  size="small"
+                  sx={{
+                    height: 14,
+                    fontSize: '0.6rem',
+                    fontWeight: 700,
+                    backgroundColor: (theme) =>
+                      theme.palette.mode === 'dark' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(5, 150, 105, 0.12)',
+                    color: (theme) => (theme.palette.mode === 'dark' ? '#6ee7b7' : '#059669'),
+                    '& .MuiChip-label': { px: 0.4 },
+                  }}
+                />
+              </Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  fontSize: '0.67rem',
+                  color: isDark ? '#9ca3af' : '#5b6478',
+                  display: 'block',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                AI-organized task manager
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* 2. Custom Tools and Technical Translator */}
           {tools && tools.length > 0 ? (
             tools.map((tool) => {
               const isActive =
