@@ -255,7 +255,7 @@ export default function TodoView({ onBackToChat, initialPrompt }: TodoViewProps)
         height: '100%',
         overflowY: 'auto',
         p: { xs: 2, sm: 3 },
-        maxWidth: 900,
+        maxWidth: "100%",
         mx: 'auto',
         width: '100%',
         boxSizing: 'border-box',
