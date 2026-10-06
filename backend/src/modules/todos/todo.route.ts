@@ -13,12 +13,12 @@ export class TodoRoute implements Routes {
   }
 
   private initializeRoutes() {
-    // Both unauthenticated and authenticated users can access their tasks (filtered by deviceId / userId)
-    this.router.get(`${this.path}`, this.todoController.getTodos);
-    this.router.post(`${this.path}`, this.todoController.createTodo);
-    this.router.post(`${this.path}/ai-parse`, this.todoController.aiParseTasks);
-    this.router.put(`${this.path}/:id`, this.todoController.updateTodo);
-    this.router.delete(`${this.path}/completed/clear`, this.todoController.clearCompleted);
-    this.router.delete(`${this.path}/:id`, this.todoController.deleteTodo);
+    // Authenticated Users Only: All tasks are shared across all authorized users and synced across devices
+    this.router.get(`${this.path}`, AuthMiddleware, this.todoController.getTodos);
+    this.router.post(`${this.path}`, AuthMiddleware, this.todoController.createTodo);
+    this.router.post(`${this.path}/ai-parse`, AuthMiddleware, this.todoController.aiParseTasks);
+    this.router.put(`${this.path}/:id`, AuthMiddleware, this.todoController.updateTodo);
+    this.router.delete(`${this.path}/completed/clear`, AuthMiddleware, this.todoController.clearCompleted);
+    this.router.delete(`${this.path}/:id`, AuthMiddleware, this.todoController.deleteTodo);
   }
 }

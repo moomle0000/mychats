@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { BACKEND_URL, Message } from '@/lib/api';
+import { BACKEND_URL, Message, Todo } from '@/lib/api';
 import { getOrCreateDeviceId } from '@/lib/device';
 
 export type SSEConnectionStatus = 'connecting' | 'connected' | 'disconnected';
@@ -12,6 +12,10 @@ interface UseSSEOptions {
   onDeleteMessage?: (data: { messageId: string; conversationId: string }) => void;
   onLiveReset?: (data: { previousArchivedId: string; newLiveId: string; timestamp: string }) => void;
   onConversationPinned?: (data: { conversationId: string; isPinned: boolean }) => void;
+  onTodoCreated?: (data: { todo: Todo }) => void;
+  onTodoUpdated?: (data: { todo: Todo }) => void;
+  onTodoDeleted?: (data: { todoId: string }) => void;
+  onTodoCleared?: (data: { count: number }) => void;
 }
 
 export function useSSE({
@@ -20,6 +24,10 @@ export function useSSE({
   onDeleteMessage,
   onLiveReset,
   onConversationPinned,
+  onTodoCreated,
+  onTodoUpdated,
+  onTodoDeleted,
+  onTodoCleared,
 }: UseSSEOptions = {}) {
   const [status, setStatus] = useState<SSEConnectionStatus>('connecting');
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -37,6 +45,18 @@ export function useSSE({
 
   const onConversationPinnedRef = useRef(onConversationPinned);
   onConversationPinnedRef.current = onConversationPinned;
+
+  const onTodoCreatedRef = useRef(onTodoCreated);
+  onTodoCreatedRef.current = onTodoCreated;
+
+  const onTodoUpdatedRef = useRef(onTodoUpdated);
+  onTodoUpdatedRef.current = onTodoUpdated;
+
+  const onTodoDeletedRef = useRef(onTodoDeleted);
+  onTodoDeletedRef.current = onTodoDeleted;
+
+  const onTodoClearedRef = useRef(onTodoCleared);
+  onTodoClearedRef.current = onTodoCleared;
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -106,6 +126,50 @@ export function useSSE({
         }
       } catch (err) {
         console.error('[SSE] Failed to parse conversation:pinned event:', err);
+      }
+    });
+
+    es.addEventListener('todo:created', (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (onTodoCreatedRef.current) {
+          onTodoCreatedRef.current(payload);
+        }
+      } catch (err) {
+        console.error('[SSE] Failed to parse todo:created event:', err);
+      }
+    });
+
+    es.addEventListener('todo:updated', (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (onTodoUpdatedRef.current) {
+          onTodoUpdatedRef.current(payload);
+        }
+      } catch (err) {
+        console.error('[SSE] Failed to parse todo:updated event:', err);
+      }
+    });
+
+    es.addEventListener('todo:deleted', (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (onTodoDeletedRef.current) {
+          onTodoDeletedRef.current(payload);
+        }
+      } catch (err) {
+        console.error('[SSE] Failed to parse todo:deleted event:', err);
+      }
+    });
+
+    es.addEventListener('todo:cleared_completed', (event: MessageEvent) => {
+      try {
+        const payload = JSON.parse(event.data);
+        if (onTodoClearedRef.current) {
+          onTodoClearedRef.current(payload);
+        }
+      } catch (err) {
+        console.error('[SSE] Failed to parse todo:cleared_completed event:', err);
       }
     });
 

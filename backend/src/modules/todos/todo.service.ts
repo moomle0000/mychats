@@ -4,6 +4,7 @@ import axios from 'axios';
 import { TodoModel, ITodo, TodoPriority, TodoStatus } from './todo.model';
 import { HttpException } from '@exceptions/httpException';
 import { AI_API_URL } from '@config';
+import { SSEService } from '../chat/sse.service';
 
 export interface CreateTodoDto {
   title: string;
@@ -68,23 +69,14 @@ JSON schema:
 
 @Service()
 export class TodoService {
+  constructor(private sseService: SSEService) {}
+
   public async getTodos(query: {
-    deviceId?: string;
-    userId?: string;
     status?: string;
     priority?: string;
     search?: string;
   }): Promise<ITodo[]> {
     const filter: any = {};
-
-    if (query.userId && Types.ObjectId.isValid(query.userId)) {
-      filter.$or = [
-        { userId: new Types.ObjectId(query.userId) },
-        ...(query.deviceId ? [{ deviceId: query.deviceId }] : []),
-      ];
-    } else if (query.deviceId) {
-      filter.deviceId = query.deviceId;
-    }
 
     if (query.status && query.status !== 'all') {
       filter.status = query.status;
@@ -117,9 +109,11 @@ export class TodoService {
         ? dto.subtasks.map((st) => ({ title: st.title.trim(), completed: !!st.completed }))
         : [],
       deviceId: dto.deviceId || '',
-      userId: dto.userId ? new Types.ObjectId(String(dto.userId)) : null,
-      sourceMessageId: dto.sourceMessageId ? new Types.ObjectId(String(dto.sourceMessageId)) : null,
+      userId: dto.userId && Types.ObjectId.isValid(String(dto.userId)) ? new Types.ObjectId(String(dto.userId)) : null,
+      sourceMessageId: dto.sourceMessageId && Types.ObjectId.isValid(String(dto.sourceMessageId)) ? new Types.ObjectId(String(dto.sourceMessageId)) : null,
     });
+
+    await this.sseService.broadcast('todo:created', { todo });
 
     return todo;
   }
@@ -142,6 +136,9 @@ export class TodoService {
     if (!updated) {
       throw new HttpException(404, 'Task not found');
     }
+
+    await this.sseService.broadcast('todo:updated', { todo: updated });
+
     return updated;
   }
 
@@ -153,21 +150,18 @@ export class TodoService {
     if (!result) {
       throw new HttpException(404, 'Task not found');
     }
+
+    await this.sseService.broadcast('todo:deleted', { todoId: id });
+
     return true;
   }
 
-  public async clearCompleted(filter: { deviceId?: string; userId?: string }): Promise<number> {
+  public async clearCompleted(): Promise<number> {
     const query: any = { status: 'completed' };
-    if (filter.userId && Types.ObjectId.isValid(filter.userId)) {
-      query.$or = [
-        { userId: new Types.ObjectId(filter.userId) },
-        ...(filter.deviceId ? [{ deviceId: filter.deviceId }] : []),
-      ];
-    } else if (filter.deviceId) {
-      query.deviceId = filter.deviceId;
-    }
-
     const res = await TodoModel.deleteMany(query);
+
+    await this.sseService.broadcast('todo:cleared_completed', { count: res.deletedCount || 0 });
+
     return res.deletedCount || 0;
   }
 

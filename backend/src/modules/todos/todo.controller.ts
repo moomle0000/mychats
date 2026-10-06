@@ -7,13 +7,9 @@ export class TodoController {
 
   public getTodos = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const deviceId = req.headers['x-device-id'] ? decodeURIComponent(String(req.headers['x-device-id'])) : undefined;
-      const userId = (req as any).user?._id;
       const { status, priority, search } = req.query;
 
       const todos = await this.todoService.getTodos({
-        deviceId,
-        userId: userId ? String(userId) : undefined,
         status: status ? String(status) : undefined,
         priority: priority ? String(priority) : undefined,
         search: search ? String(search) : undefined,
@@ -64,14 +60,7 @@ export class TodoController {
 
   public clearCompleted = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const deviceId = req.headers['x-device-id'] ? decodeURIComponent(String(req.headers['x-device-id'])) : undefined;
-      const userId = (req as any).user?._id;
-
-      const count = await this.todoService.clearCompleted({
-        deviceId,
-        userId: userId ? String(userId) : undefined,
-      });
-
+      const count = await this.todoService.clearCompleted();
       res.status(200).json({ count, message: `Cleared ${count} completed todos` });
     } catch (error) {
       next(error);

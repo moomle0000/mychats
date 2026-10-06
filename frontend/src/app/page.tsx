@@ -410,7 +410,7 @@ export default function ChatPage() {
           }}
         >
           {activeConversationId === 'todo' ? (
-            <TodoView onBackToChat={() => setActiveConversationId('live')} />
+            <TodoView user={user} onBackToChat={() => setActiveConversationId('live')} />
           ) : loading ? (
             <Box
               sx={{
