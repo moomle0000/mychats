@@ -207,12 +207,20 @@ export default function ChatPage() {
     loadSidebarConversations();
   }, [activeConversationId, loadSidebarConversations]);
 
+  // Handle conversation pinned event from SSE
+  const handleConversationPinned = useCallback((data: { conversationId: string; isPinned: boolean }) => {
+    setConversations((prev) =>
+      prev.map((c) => (c._id === data.conversationId ? { ...c, isPinned: data.isPinned } : c))
+    );
+  }, []);
+
   // Connect SSE realtime stream
   const { status, reconnect } = useSSE({
     conversationId: 'live',
     onNewMessage: handleNewMessage,
     onDeleteMessage: handleDeletedMessage,
     onLiveReset: handleLiveReset,
+    onConversationPinned: handleConversationPinned,
   });
 
   // Select a conversation from sidebar
@@ -300,6 +308,20 @@ export default function ChatPage() {
     loadSidebarConversations();
   };
 
+  // Pin / unpin conversation in sidebar
+  const handleTogglePin = async (id: string, isPinned?: boolean) => {
+    // Optimistic update
+    setConversations((prev) =>
+      prev.map((c) => (c._id === id ? { ...c, isPinned: isPinned ?? !c.isPinned } : c))
+    );
+    try {
+      await api.togglePinConversation(id, isPinned);
+    } catch (err) {
+      console.error('[ChatPage] Failed to toggle pin conversation:', err);
+      loadSidebarConversations();
+    }
+  };
+
   // Delete conversation in sidebar
   const handleDelete = async (id: string) => {
     await api.deleteConversation(id);
@@ -343,6 +365,7 @@ export default function ChatPage() {
         onLogout={handleLogout}
         onRename={handleRename}
         onDelete={handleDelete}
+        onTogglePin={handleTogglePin}
         isMobile={isMobile}
       />
 

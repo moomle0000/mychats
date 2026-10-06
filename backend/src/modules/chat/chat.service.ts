@@ -369,7 +369,7 @@ export class ChatService {
     const skip = (safePage - 1) * safeLimit;
 
     const [data, total] = await Promise.all([
-      ConversationModel.find(query).sort({ archivedAt: -1, createdAt: -1 }).skip(skip).limit(safeLimit).lean(),
+      ConversationModel.find(query).sort({ isPinned: -1, archivedAt: -1, createdAt: -1 }).skip(skip).limit(safeLimit).lean(),
       ConversationModel.countDocuments(query),
     ]);
 
@@ -379,6 +379,23 @@ export class ChatService {
       page: safePage,
       totalPages: Math.ceil(total / safeLimit) || 1,
     };
+  }
+
+  public async togglePinConversation(id: string, isPinned?: boolean): Promise<IConversation> {
+    const conv = await ConversationModel.findById(id);
+    if (!conv) {
+      throw new HttpException(404, 'Conversation not found');
+    }
+
+    conv.isPinned = typeof isPinned === 'boolean' ? isPinned : !conv.isPinned;
+    await conv.save();
+
+    await this.sseService.broadcast('conversation:pinned', {
+      conversationId: String(conv._id),
+      isPinned: conv.isPinned,
+    });
+
+    return conv;
   }
 
   public async getConversationDetails(id: string): Promise<{ conversation: IConversation; messages: IMessage[] }> {

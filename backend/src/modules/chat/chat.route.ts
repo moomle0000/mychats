@@ -25,10 +25,13 @@ export class ChatRoute implements Routes {
     this.router.post(`${this.path}/chat/upload`, upload.single('file'), this.chatController.uploadFile);
     this.router.post(`${this.path}/chat/clear`, OptionalAuthMiddleware, this.chatController.clear);
 
+    this.router.patch(`${this.path}/chat/conversations/:id/pin`, AuthMiddleware, this.chatController.togglePinConversation);
+
     // Admin endpoints (protected by AuthMiddleware)
     this.router.get(`${this.path}/admin/conversations`, AuthMiddleware, this.chatController.listArchives);
     this.router.get(`${this.path}/admin/conversations/:id`, AuthMiddleware, this.chatController.getConversation);
     this.router.patch(`${this.path}/admin/conversations/:id`, AuthMiddleware, this.chatController.renameConversation);
+    this.router.patch(`${this.path}/admin/conversations/:id/pin`, AuthMiddleware, this.chatController.togglePinConversation);
     this.router.delete(`${this.path}/admin/conversations/:id`, AuthMiddleware, this.chatController.deleteConversation);
     this.router.get(`${this.path}/admin/conversations/:id/export`, AuthMiddleware, this.chatController.exportConversation);
     this.router.get(`${this.path}/admin/stats`, AuthMiddleware, this.chatController.getStats);

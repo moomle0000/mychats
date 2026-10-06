@@ -197,6 +197,17 @@ export class ChatController {
     }
   };
 
+  public togglePinConversation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const id = req.params.id;
+      const { isPinned } = req.body || {};
+      const result = await this.chatService.togglePinConversation(id, isPinned);
+      res.status(200).json({ data: result, message: result.isPinned ? 'Conversation pinned' : 'Conversation unpinned' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   public deleteConversation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id;

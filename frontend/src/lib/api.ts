@@ -40,6 +40,7 @@ export interface Conversation {
   startedAt: string;
   archivedAt?: string | null;
   previewText?: string;
+  isPinned?: boolean;
   createdAt: string;
 }
 
@@ -302,6 +303,13 @@ export const api = {
     return request(`/api/admin/conversations/${id}`, {
       method: 'PATCH',
       body: JSON.stringify({ title }),
+    });
+  },
+
+  async togglePinConversation(id: string, isPinned?: boolean): Promise<{ data: Conversation }> {
+    return request(`/api/chat/conversations/${id}/pin`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isPinned }),
     });
   },
 

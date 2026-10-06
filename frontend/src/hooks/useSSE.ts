@@ -11,6 +11,7 @@ interface UseSSEOptions {
   onNewMessage?: (message: Message) => void;
   onDeleteMessage?: (data: { messageId: string; conversationId: string }) => void;
   onLiveReset?: (data: { previousArchivedId: string; newLiveId: string; timestamp: string }) => void;
+  onConversationPinned?: (data: { conversationId: string; isPinned: boolean }) => void;
 }
 
 export function useSSE({
@@ -18,6 +19,7 @@ export function useSSE({
   onNewMessage,
   onDeleteMessage,
   onLiveReset,
+  onConversationPinned,
 }: UseSSEOptions = {}) {
   const [status, setStatus] = useState<SSEConnectionStatus>('connecting');
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -32,6 +34,9 @@ export function useSSE({
 
   const onLiveResetRef = useRef(onLiveReset);
   onLiveResetRef.current = onLiveReset;
+
+  const onConversationPinnedRef = useRef(onConversationPinned);
+  onConversationPinnedRef.current = onConversationPinned;
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -90,6 +95,17 @@ export function useSSE({
         }
       } catch (err) {
         console.error('[SSE] Failed to parse chat:live-reset event:', err);
+      }
+    });
+
+    es.addEventListener('conversation:pinned', (event: MessageEvent) => {
+      try {
+        const pinData = JSON.parse(event.data);
+        if (onConversationPinnedRef.current) {
+          onConversationPinnedRef.current(pinData);
+        }
+      } catch (err) {
+        console.error('[SSE] Failed to parse conversation:pinned event:', err);
       }
     });
 

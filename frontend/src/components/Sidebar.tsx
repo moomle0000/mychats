@@ -45,6 +45,8 @@ import BuildRoundedIcon from '@mui/icons-material/BuildRounded';
 import DevicesRoundedIcon from '@mui/icons-material/DevicesRounded';
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import PushPinRoundedIcon from '@mui/icons-material/PushPinRounded';
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import { Conversation, User, AITool, api, getOrCreateDeviceId, getDeviceLabel, setDeviceLabel } from '@/lib/api';
 import { useColorMode } from '@/theme/ColorModeContext';
 import Link from 'next/link';
@@ -61,6 +63,7 @@ interface SidebarProps {
   onLogout: () => void;
   onRename: (id: string, newTitle: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onTogglePin?: (id: string, isPinned?: boolean) => Promise<void>;
   isMobile: boolean;
 }
 
@@ -95,6 +98,7 @@ export default function Sidebar({
   onLogout,
   onRename,
   onDelete,
+  onTogglePin,
   isMobile,
 }: SidebarProps) {
   const { mode, toggleColorMode } = useColorMode();
@@ -116,6 +120,20 @@ export default function Sidebar({
   const [sidebarDeviceLabel, setSidebarDeviceLabel] = useState('');
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
   const [newDeviceLabel, setNewDeviceLabel] = useState('');
+
+  // Sorted conversations: pinned items first, then chronological
+  const sortedConversations = React.useMemo(() => {
+    return [...conversations].sort((a, b) => {
+      const aPinned = Boolean(a.isPinned);
+      const bPinned = Boolean(b.isPinned);
+      if (aPinned !== bPinned) {
+        return aPinned ? -1 : 1;
+      }
+      const timeA = new Date(a.archivedAt || a.createdAt).getTime();
+      const timeB = new Date(b.archivedAt || b.createdAt).getTime();
+      return timeB - timeA;
+    });
+  }, [conversations]);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -152,6 +170,16 @@ export default function Sidebar({
 
   const handleCloseMenu = () => {
     setMenuAnchorEl(null);
+  };
+
+  const handleTogglePin = async () => {
+    if (selectedConv && onTogglePin) {
+      const nextPinned = !selectedConv.isPinned;
+      handleCloseMenu();
+      await onTogglePin(selectedConv._id, nextPinned);
+    } else {
+      handleCloseMenu();
+    }
   };
 
   const handleTriggerRename = () => {
@@ -708,7 +736,7 @@ export default function Sidebar({
               </Typography>
             )}
 
-            {conversations.map((conv) => {
+            {sortedConversations.map((conv) => {
               const isActive = activeConversationId === conv._id;
               return (
                 <Box
@@ -731,17 +759,28 @@ export default function Sidebar({
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0, flex: 1 }}>
-                    <ChatBubbleOutlineRoundedIcon
-                      sx={{
-                        fontSize: 18,
-                        color: isDark ? '#9ca3af' : '#5b6478',
-                        flexShrink: 0,
-                      }}
-                    />
+                    {conv.isPinned ? (
+                      <PushPinRoundedIcon
+                        sx={{
+                          fontSize: 16,
+                          color: isDark ? '#818cf8' : '#4f46e5',
+                          flexShrink: 0,
+                          transform: 'rotate(45deg)',
+                        }}
+                      />
+                    ) : (
+                      <ChatBubbleOutlineRoundedIcon
+                        sx={{
+                          fontSize: 18,
+                          color: isDark ? '#9ca3af' : '#5b6478',
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
                     <Typography
                       variant="body2"
                       sx={{
-                        fontWeight: isActive ? 600 : 400,
+                        fontWeight: isActive ? 600 : conv.isPinned ? 500 : 400,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -1032,6 +1071,25 @@ export default function Sidebar({
           },
         }}
       >
+        {selectedConv && (
+          <MenuItem onClick={handleTogglePin}>
+            <ListItemIcon>
+              {selectedConv.isPinned ? (
+                <PushPinRoundedIcon fontSize="small" sx={{ color: isDark ? '#818cf8' : '#4f46e5', transform: 'rotate(45deg)' }} />
+              ) : (
+                <PushPinOutlinedIcon fontSize="small" />
+              )}
+            </ListItemIcon>
+            <ListItemText
+              primary={
+                <Typography sx={{ fontSize: '0.85rem' }}>
+                  {selectedConv.isPinned ? 'Unpin chat' : 'Pin to top'}
+                </Typography>
+              }
+            />
+          </MenuItem>
+        )}
+
         <MenuItem onClick={handleTriggerRename}>
           <ListItemIcon>
             <EditRoundedIcon fontSize="small" />

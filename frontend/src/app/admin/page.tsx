@@ -43,6 +43,8 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ArchiveIcon from '@mui/icons-material/Archive';
+import PushPinRoundedIcon from '@mui/icons-material/PushPinRounded';
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import MarkChatReadIcon from '@mui/icons-material/MarkChatRead';
 import BoltIcon from '@mui/icons-material/Bolt';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
@@ -215,6 +217,16 @@ export default function AdminPage() {
       loadData();
     } catch (err: any) {
       alert(`Delete failed: ${err?.message || 'Error'}`);
+    }
+  };
+
+  // Toggle pin conversation action
+  const handleTogglePin = async (conv: Conversation) => {
+    try {
+      await api.togglePinConversation(conv._id, !conv.isPinned);
+      loadData();
+    } catch (err: any) {
+      alert(`Pin failed: ${err?.message || 'Error'}`);
     }
   };
 
@@ -532,7 +544,20 @@ export default function AdminPage() {
                   ) : (
                     archives.map((conv) => (
                       <TableRow key={conv._id} hover>
-                        <TableCell sx={{ fontWeight: 600 }}>{conv.title}</TableCell>
+                        <TableCell sx={{ fontWeight: 600 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {conv.isPinned && (
+                              <PushPinRoundedIcon
+                                sx={{
+                                  fontSize: 16,
+                                  color: 'primary.main',
+                                  transform: 'rotate(45deg)',
+                                }}
+                              />
+                            )}
+                            {conv.title}
+                          </Box>
+                        </TableCell>
                         <TableCell>
                           <Chip size="small" label={`${conv.messageCount} msgs`} />
                         </TableCell>
@@ -549,6 +574,20 @@ export default function AdminPage() {
                           {conv.previewText || '-'}
                         </TableCell>
                         <TableCell align="right">
+                          <Tooltip title={conv.isPinned ? 'Unpin chat' : 'Pin chat to top'}>
+                            <IconButton
+                              size="small"
+                              color={conv.isPinned ? 'primary' : 'default'}
+                              onClick={() => handleTogglePin(conv)}
+                            >
+                              {conv.isPinned ? (
+                                <PushPinRoundedIcon fontSize="small" sx={{ transform: 'rotate(45deg)' }} />
+                              ) : (
+                                <PushPinOutlinedIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+
                           <Tooltip title="View messages">
                             <IconButton
                               size="small"

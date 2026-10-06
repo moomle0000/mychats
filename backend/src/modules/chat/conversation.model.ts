@@ -3,6 +3,7 @@ import { model, Schema, Document, Types } from 'mongoose';
 export interface IConversation extends Document {
   _id: Types.ObjectId;
   status: 'live' | 'archived' | 'translator' | 'tool';
+  isPinned?: boolean;
   toolId?: Types.ObjectId | null;
   deviceId?: string | null;
   title: string;
@@ -20,6 +21,11 @@ const conversationSchema: Schema = new Schema(
       type: String,
       enum: ['live', 'archived', 'translator', 'tool'],
       default: 'live',
+      index: true,
+    },
+    isPinned: {
+      type: Boolean,
+      default: false,
       index: true,
     },
     toolId: {
@@ -60,6 +66,7 @@ const conversationSchema: Schema = new Schema(
   }
 );
 
+conversationSchema.index({ status: 1, isPinned: -1, archivedAt: -1 });
 conversationSchema.index({ status: 1, archivedAt: -1 });
 conversationSchema.index({ status: 1, toolId: 1, deviceId: 1 });
 
