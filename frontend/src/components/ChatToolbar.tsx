@@ -41,6 +41,7 @@ interface ChatToolbarProps {
   isLive?: boolean;
   isTool?: boolean;
   onNewChat?: () => void;
+  hasMessages?: boolean;
 }
 
 export default function ChatToolbar({
@@ -54,6 +55,7 @@ export default function ChatToolbar({
   isLive = true,
   isTool = false,
   onNewChat,
+  hasMessages = true,
 }: ChatToolbarProps) {
   const { mode, toggleColorMode } = useColorMode();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -264,34 +266,56 @@ export default function ChatToolbar({
             )}
 
             {(isLive || isTool) && (
-              <Tooltip title={isTool ? "Clear tool history for this device" : "Clear & Archive to history"}>
-                <Button
-                  variant="outlined"
-                  color={isTool ? "primary" : "error"}
-                  size="small"
-                  startIcon={<DeleteSweepRoundedIcon />}
-                  onClick={() => setConfirmOpen(true)}
-                  sx={{
-                    borderRadius: 5,
-                    fontSize: '0.785rem',
-                    display: { xs: 'none', sm: 'inline-flex' },
-                  }}
-                >
-                  {isTool ? 'Clear Tool Chat' : 'Clear & Archive'}
-                </Button>
+              <Tooltip
+                title={
+                  !hasMessages
+                    ? 'No messages to clear'
+                    : isTool
+                    ? 'Clear tool history for this device'
+                    : 'Clear & Archive to history'
+                }
+              >
+                <span>
+                  <Button
+                    variant="outlined"
+                    color={isTool ? "primary" : "error"}
+                    size="small"
+                    startIcon={<DeleteSweepRoundedIcon />}
+                    onClick={() => setConfirmOpen(true)}
+                    disabled={!hasMessages}
+                    sx={{
+                      borderRadius: 5,
+                      fontSize: '0.785rem',
+                      display: { xs: 'none', sm: 'inline-flex' },
+                    }}
+                  >
+                    {isTool ? 'Clear Tool Chat' : 'Clear & Archive'}
+                  </Button>
+                </span>
               </Tooltip>
             )}
 
             {(isLive || isTool) && (
-              <Tooltip title={isTool ? "Clear Tool Chat" : "Clear & Archive"}>
-                <IconButton
-                  color={isTool ? "primary" : "error"}
-                  size="small"
-                  onClick={() => setConfirmOpen(true)}
-                  sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
-                >
-                  <DeleteSweepRoundedIcon fontSize="small" />
-                </IconButton>
+              <Tooltip
+                title={
+                  !hasMessages
+                    ? 'No messages to clear'
+                    : isTool
+                    ? 'Clear Tool Chat'
+                    : 'Clear & Archive'
+                }
+              >
+                <span>
+                  <IconButton
+                    color={isTool ? "primary" : "error"}
+                    size="small"
+                    onClick={() => setConfirmOpen(true)}
+                    disabled={!hasMessages}
+                    sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+                  >
+                    <DeleteSweepRoundedIcon fontSize="small" />
+                  </IconButton>
+                </span>
               </Tooltip>
             )}
 

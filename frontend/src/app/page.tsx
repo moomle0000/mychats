@@ -364,6 +364,7 @@ export default function ChatPage() {
           isLive={isLive}
           isTool={isToolChat}
           onNewChat={handleNewChat}
+          hasMessages={messages.length > 0}
         />
 
         <Box

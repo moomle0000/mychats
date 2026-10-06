@@ -289,6 +289,9 @@ export class ChatService {
   public async clearAndArchive(): Promise<{ archived: IConversation; newLive: IConversation }> {
     const live = await this.getOrCreateLiveConversation();
     const count = await MessageModel.countDocuments({ conversationId: live._id });
+    if (count === 0) {
+      throw new HttpException(400, 'Cannot archive an empty conversation. No messages in this chat yet.');
+    }
 
     const now = new Date();
     const dateStr = now.toISOString().replace('T', ' ').substring(0, 16);
