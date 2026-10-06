@@ -80,27 +80,89 @@ export class ChatController {
   };
 
   public sendAIMessage = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const { text, conversationId, systemPrompt } = req.body;
-      const user = req.user;
+    // SSE response — open the stream immediately so proxies/clients never wait
+    // on a blocking JSON body (which previously caused intermittent HTTP 500s).
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
 
+    // Disable request/response idle timeouts for the life of this stream.
+    req.setTimeout(0);
+    res.setTimeout(0);
+
+    const writeEvent = (event: string, data: unknown) => {
+      if (res.writableEnded) return;
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    const pingInterval = setInterval(() => {
+      if (res.writableEnded) return;
+      try {
+        res.write(': ping\n\n');
+      } catch {
+        // ignore write failures on closed sockets
+      }
+    }, 15000);
+
+    const abortController = new AbortController();
+    // IMPORTANT: do NOT listen to req.on('close') — Express emits that as soon as
+    // the POST body is fully read, which would abort the AI stream before `done`.
+    // Only abort when the *response* socket closes unexpectedly (client navigated away).
+    let streamFinished = false;
+    const onResponseClose = () => {
+      if (!streamFinished && !abortController.signal.aborted) {
+        abortController.abort();
+      }
+    };
+    res.on('close', onResponseClose);
+
+    try {
+      const { text, conversationId, systemPrompt } = req.body || {};
+      if (!text || typeof text !== 'string' || !text.trim()) {
+        writeEvent('error', { error: 'Message text is required' });
+        return;
+      }
+
+      const user = req.user;
       const senderName = user ? (user.username || user.fullName || user.email.split('@')[0]) : 'User';
       const senderId = user ? user._id : null;
       const { deviceId, deviceLabel } = this.extractDeviceMeta(req);
 
-      const result = await this.chatService.sendAIMessage({
-        conversationId,
-        text,
-        senderId,
-        senderName,
-        deviceId,
-        deviceLabel,
-        systemPrompt,
-      });
+      writeEvent('connected', { status: 'connected', timestamp: Date.now() });
 
-      res.status(201).json({ data: result, message: 'AI response generated' });
-    } catch (error) {
-      next(error);
+      await this.chatService.streamAIMessage(
+        {
+          conversationId,
+          text: text.trim(),
+          senderId,
+          senderName,
+          deviceId,
+          deviceLabel,
+          systemPrompt,
+        },
+        {
+          onUserMessage: (userMessage) => writeEvent('user_message', userMessage),
+          onChunk: (content) => writeEvent('chunk', { content }),
+          onDone: (result) => writeEvent('done', result),
+          onError: (error) => writeEvent('error', { error }),
+        },
+        abortController.signal
+      );
+    } catch (error: any) {
+      // Never fall through to Express JSON error middleware once SSE headers are sent —
+      // that would corrupt the stream into an HTTP 500 page.
+      const message = error?.message || 'AI stream failed';
+      writeEvent('error', { error: message });
+    } finally {
+      streamFinished = true;
+      clearInterval(pingInterval);
+      res.off('close', onResponseClose);
+      if (!res.writableEnded) {
+        res.end();
+      }
     }
   };
 

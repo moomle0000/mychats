@@ -1,12 +1,31 @@
 import { Service } from 'typedi';
 import { Types } from 'mongoose';
 import axios from 'axios';
+import { Readable } from 'stream';
 import { ConversationModel, IConversation } from './conversation.model';
 import { MessageModel, IMessage } from './message.model';
 import { SSEService } from './sse.service';
 import { ToolModel } from '../tools/tool.model';
 import { HttpException } from '@exceptions/httpException';
 import { AI_API_URL } from '@config';
+import { logger } from '@utils/logger';
+
+export interface SendAIMessagePayload {
+  conversationId?: string;
+  text: string;
+  senderName?: string;
+  senderId?: string | Types.ObjectId | null;
+  deviceId?: string;
+  deviceLabel?: string;
+  systemPrompt?: string;
+}
+
+export interface StreamAIMessageHandlers {
+  onUserMessage: (userMessage: IMessage) => void;
+  onChunk: (content: string) => void;
+  onDone: (result: { userMessage: IMessage; aiMessage: IMessage }) => void;
+  onError: (error: string) => void;
+}
 
 export interface CreateMessageDto {
   conversationId?: string;
@@ -185,15 +204,20 @@ export class ChatService {
     return message;
   }
 
-  public async sendAIMessage(payload: {
-    conversationId?: string;
-    text: string;
-    senderName?: string;
-    senderId?: string | Types.ObjectId | null;
-    deviceId?: string;
-    deviceLabel?: string;
-    systemPrompt?: string;
-  }): Promise<{ userMessage: IMessage; aiMessage: IMessage }> {
+  /**
+   * Stream an AI completion over SSE-style callbacks.
+   * Saves the user message first, then streams provider tokens via onChunk,
+   * and finally persists + broadcasts the completed AI message.
+   * Provider failures are reported via onError (never thrown as HTTP 500).
+   */
+  public async streamAIMessage(
+    payload: SendAIMessagePayload,
+    handlers: StreamAIMessageHandlers,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const startedAt = Date.now();
+    logger.info(`[AI Stream] start conversationId=${payload.conversationId || 'live'} deviceId=${payload.deviceId || '-'}`);
+
     // 1. Save user prompt message
     const userMessage = await this.createMessage({
       conversationId: payload.conversationId,
@@ -204,6 +228,7 @@ export class ChatService {
       deviceLabel: payload.deviceLabel || '',
       kind: 'text',
     });
+    handlers.onUserMessage(userMessage);
 
     const targetConvId = userMessage.conversationId;
 
@@ -241,8 +266,12 @@ export class ChatService {
       formattedMessages.push({ role: 'user', content: payload.text });
     }
 
-    // 3. Call llama.cpp API
+    // 3. Stream from llama.cpp OpenAI-compatible API
     let aiResponseText = '';
+    let chunkCount = 0;
+    let providerFailed = false;
+    let providerError = '';
+
     try {
       const response = await axios.post(
         `${AI_API_URL}/chat/completions`,
@@ -250,31 +279,87 @@ export class ChatService {
           messages: formattedMessages,
           temperature: 0.7,
           max_tokens: 1500,
-          stream: false,
+          stream: true,
         },
         {
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 120000,
+          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+          responseType: 'stream',
+          // No hard axios timeout — keep the SSE channel open while the model generates.
+          timeout: 0,
+          signal,
         }
       );
 
-      const choice = response.data?.choices?.[0]?.message;
-      if (choice) {
-        aiResponseText = (choice.content || '').trim();
-        if (!aiResponseText && choice.reasoning_content) {
-          aiResponseText = choice.reasoning_content.trim();
+      const providerStream = response.data as Readable;
+      let buffer = '';
+
+      for await (const raw of providerStream) {
+        if (signal?.aborted) {
+          providerStream.destroy();
+          break;
+        }
+
+        buffer += typeof raw === 'string' ? raw : Buffer.from(raw).toString('utf8');
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith(':')) continue;
+          if (!trimmed.startsWith('data:')) continue;
+
+          const data = trimmed.slice(5).trim();
+          if (!data || data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed?.choices?.[0]?.delta;
+            const piece =
+              (typeof delta?.content === 'string' && delta.content) ||
+              (typeof delta?.reasoning_content === 'string' && delta.reasoning_content) ||
+              '';
+
+            if (piece) {
+              aiResponseText += piece;
+              chunkCount += 1;
+              handlers.onChunk(piece);
+            }
+          } catch (parseErr: any) {
+            logger.warn(`[AI Stream] skipped malformed provider chunk: ${parseErr?.message || parseErr}`);
+          }
         }
       }
+
+      logger.info(
+        `[AI Stream] provider complete chunks=${chunkCount} chars=${aiResponseText.length} ms=${Date.now() - startedAt}`
+      );
     } catch (err: any) {
-      console.error('[AI Mode] Failed to call llama.cpp:', err?.message || err);
-      aiResponseText = `⚠️ AI Error: Could not connect to AI engine (${err?.message || 'timeout/offline'}). Please ensure llama.cpp is running at ${AI_API_URL}.`;
+      if (signal?.aborted || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+        logger.info(`[AI Stream] aborted by client after ${Date.now() - startedAt}ms`);
+        return;
+      }
+
+      providerFailed = true;
+      providerError = err?.message || 'timeout/offline';
+      logger.error(`[AI Stream] provider error: ${providerError}`);
+      aiResponseText = `⚠️ AI Error: Could not connect to AI engine (${providerError}). Please ensure llama.cpp is running at ${AI_API_URL}.`;
+      handlers.onError(aiResponseText);
+    }
+
+    if (signal?.aborted) {
+      return;
     }
 
     if (!aiResponseText) {
       aiResponseText = 'No response received from AI model.';
+      if (!providerFailed) {
+        providerFailed = true;
+        providerError = aiResponseText;
+        handlers.onError(aiResponseText);
+      }
     }
 
-    // 4. Save and broadcast AI response (scoped to same conversation and device)
+    // 4. Save and broadcast final AI response (scoped via createMessage / SSE rules)
     const aiMessage = await this.createMessage({
       conversationId: String(targetConvId),
       text: aiResponseText,
@@ -283,7 +368,10 @@ export class ChatService {
       kind: 'text',
     });
 
-    return { userMessage, aiMessage };
+    logger.info(
+      `[AI Stream] done chunks=${chunkCount} failed=${providerFailed} ms=${Date.now() - startedAt} aiMessageId=${aiMessage._id}`
+    );
+    handlers.onDone({ userMessage, aiMessage });
   }
 
   public async clearAndArchive(): Promise<{ archived: IConversation; newLive: IConversation }> {

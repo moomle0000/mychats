@@ -259,21 +259,155 @@ export const api = {
     });
   },
 
-  async sendAIMessage(payload: {
-    text: string;
-    conversationId?: string;
-    systemPrompt?: string;
-    deviceId?: string;
-    deviceLabel?: string;
-  }): Promise<{ data: { userMessage: Message; aiMessage: Message } }> {
-    return request('/api/chat/ai', {
+  async sendAIMessage(
+    payload: {
+      text: string;
+      conversationId?: string;
+      systemPrompt?: string;
+      deviceId?: string;
+      deviceLabel?: string;
+    },
+    handlers: {
+      onUserMessage?: (message: Message) => void;
+      onChunk?: (content: string) => void;
+      onDone?: (data: { userMessage: Message; aiMessage: Message }) => void;
+      onError?: (error: string) => void;
+    } = {},
+    signal?: AbortSignal
+  ): Promise<void> {
+    // Stream directly to the backend (bypass Next.js rewrites proxy) so long
+    // generations are not reset mid-flight. Response is text/event-stream.
+    const isBrowser = typeof window !== 'undefined';
+    const url = isBrowser ? `${BACKEND_URL}/api/chat/ai` : '/api/chat/ai';
+
+    const headers = new Headers({
+      'Content-Type': 'application/json',
+      Accept: 'text/event-stream',
+    });
+
+    const dId = payload.deviceId || getOrCreateDeviceId();
+    if (dId) headers.set('x-device-id', encodeURIComponent(dId));
+
+    const dLabel = payload.deviceLabel || getDeviceLabel();
+    if (dLabel) {
+      try {
+        headers.set('x-device-label', encodeURIComponent(dLabel));
+      } catch {
+        // ignore
+      }
+    }
+
+    const token = getAuthToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+
+    const res = await fetch(url, {
       method: 'POST',
+      headers,
+      credentials: 'include',
+      signal,
       body: JSON.stringify({
-        deviceId: getOrCreateDeviceId(),
-        deviceLabel: getDeviceLabel(),
-        ...payload,
+        deviceId: dId,
+        deviceLabel: dLabel,
+        text: payload.text,
+        conversationId: payload.conversationId,
+        systemPrompt: payload.systemPrompt,
       }),
     });
+
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({} as { message?: string }));
+      throw new Error(errBody.message || `AI stream failed with status ${res.status}`);
+    }
+
+    if (!res.body) {
+      throw new Error('AI stream response has no body');
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let sawDone = false;
+    let sawError = false;
+
+    const dispatchEvent = (eventName: string, rawData: string) => {
+      if (!rawData) return;
+      let parsed: any;
+      try {
+        parsed = JSON.parse(rawData);
+      } catch {
+        return;
+      }
+
+      switch (eventName) {
+        case 'user_message':
+          handlers.onUserMessage?.(parsed as Message);
+          break;
+        case 'chunk':
+          if (typeof parsed?.content === 'string' && parsed.content) {
+            handlers.onChunk?.(parsed.content);
+          }
+          break;
+        case 'done':
+          sawDone = true;
+          handlers.onDone?.(parsed as { userMessage: Message; aiMessage: Message });
+          break;
+        case 'error':
+          sawError = true;
+          handlers.onError?.(String(parsed?.error || 'AI stream error'));
+          break;
+        default:
+          break;
+      }
+    };
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split(/\n\n/);
+      buffer = parts.pop() || '';
+
+      for (const part of parts) {
+        const lines = part.split(/\r?\n/);
+        let eventName = 'message';
+        const dataLines: string[] = [];
+
+        for (const line of lines) {
+          if (line.startsWith('event:')) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).trim());
+          }
+          // ignore comment lines (e.g. ": ping")
+        }
+
+        if (dataLines.length > 0) {
+          dispatchEvent(eventName, dataLines.join('\n'));
+        }
+      }
+    }
+
+    // Flush any trailing SSE frame that lacked a final blank line
+    if (buffer.trim()) {
+      const lines = buffer.split(/\r?\n/);
+      let eventName = 'message';
+      const dataLines: string[] = [];
+      for (const line of lines) {
+        if (line.startsWith('event:')) {
+          eventName = line.slice(6).trim();
+        } else if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trim());
+        }
+      }
+      if (dataLines.length > 0) {
+        dispatchEvent(eventName, dataLines.join('\n'));
+      }
+    }
+
+    if (!sawDone && !sawError && !signal?.aborted) {
+      handlers.onError?.('AI stream ended unexpectedly');
+    }
   },
 
   async deleteMessage(id: string): Promise<{ data: { deleted: boolean; messageId: string } }> {

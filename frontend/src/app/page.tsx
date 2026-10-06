@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Box, CircularProgress, useMediaQuery, useTheme } from '@mui/material';
 import Sidebar from '@/components/Sidebar';
 import ChatToolbar from '@/components/ChatToolbar';
@@ -10,6 +10,8 @@ import TodoView from '@/components/TodoView';
 import { api, Message, Conversation, User, AITool } from '@/lib/api';
 import { useSSE } from '@/hooks/useSSE';
 import { TRANSLATOR_SYSTEM_PROMPT } from '@/lib/constants';
+
+const AI_STREAM_PLACEHOLDER_ID = '__ai_streaming__';
 
 export default function ChatPage() {
   const theme = useTheme();
@@ -27,6 +29,7 @@ export default function ChatPage() {
   // Input & AI Mode State
   const [mode, setMode] = useState<InputMode>('chat');
   const [aiGenerating, setAiGenerating] = useState(false);
+  const aiAbortRef = useRef<AbortController | null>(null);
 
   // Messages state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -183,16 +186,31 @@ export default function ChatPage() {
   // Handle new message from SSE broadcast (Isolated to current active conversation)
   const handleNewMessage = useCallback(
     (msg: Message) => {
+      const append = (prev: Message[]) => {
+        if (prev.some((m) => m._id === msg._id)) return prev;
+        // Drop the local streaming placeholder once the persisted AI message arrives
+        const base =
+          msg.senderName === 'AI' ? prev.filter((m) => m._id !== AI_STREAM_PLACEHOLDER_ID) : prev;
+        return [...base, msg];
+      };
+
       if (activeConversationId === 'live') {
         if (!currentDbConv || msg.conversationId === currentDbConv._id) {
-          setMessages((prev) => (prev.some((m) => m._id === msg._id) ? prev : [...prev, msg]));
+          setMessages(append);
         }
       } else if (currentDbConv && msg.conversationId === currentDbConv._id) {
-        setMessages((prev) => (prev.some((m) => m._id === msg._id) ? prev : [...prev, msg]));
+        setMessages(append);
       }
     },
     [activeConversationId, currentDbConv]
   );
+
+  // Abort any in-flight AI SSE stream on unmount
+  useEffect(() => {
+    return () => {
+      aiAbortRef.current?.abort();
+    };
+  }, []);
 
   // Handle message deleted from SSE broadcast
   const handleDeletedMessage = useCallback((data: { messageId: string; conversationId: string }) => {
@@ -247,28 +265,91 @@ export default function ChatPage() {
   const handleSendMessage = async (text: string, imageUrl?: string, inputMode: InputMode = mode) => {
     if (isReadOnly) return;
 
-    // AI Mode or Dedicated Tool
+    // AI Mode or Dedicated Tool — stream tokens over SSE
     if (isToolChat || inputMode === 'ai') {
+      // Abort any in-flight AI stream when the user sends a new prompt
+      if (aiAbortRef.current) {
+        aiAbortRef.current.abort();
+        aiAbortRef.current = null;
+      }
+
+      const abortController = new AbortController();
+      aiAbortRef.current = abortController;
+
       try {
         setAiGenerating(true);
         const systemPrompt = activeTool?.systemPrompt || (isTranslator ? TRANSLATOR_SYSTEM_PROMPT : undefined);
 
-        const res = await api.sendAIMessage({
-          text,
-          conversationId: activeConversationId,
-          systemPrompt,
-        });
+        // Remove a leftover streaming placeholder from a prior aborted run
+        setMessages((prev) => prev.filter((m) => m._id !== AI_STREAM_PLACEHOLDER_ID));
 
-        // Add both user message and AI response immediately
-        setMessages((prev) => {
-          const next = [...prev];
-          if (!next.some((m) => m._id === res.data.userMessage._id)) next.push(res.data.userMessage);
-          if (!next.some((m) => m._id === res.data.aiMessage._id)) next.push(res.data.aiMessage);
-          return next;
-        });
+        await api.sendAIMessage(
+          {
+            text,
+            conversationId: activeConversationId,
+            systemPrompt,
+          },
+          {
+            onUserMessage: (userMessage) => {
+              setMessages((prev) => {
+                if (prev.some((m) => m._id === userMessage._id)) return prev;
+                return [...prev, userMessage];
+              });
+            },
+            onChunk: (content) => {
+              setMessages((prev) => {
+                const idx = prev.findIndex((m) => m._id === AI_STREAM_PLACEHOLDER_ID);
+                if (idx >= 0) {
+                  const next = [...prev];
+                  next[idx] = { ...next[idx], text: next[idx].text + content };
+                  return next;
+                }
+                const placeholder: Message = {
+                  _id: AI_STREAM_PLACEHOLDER_ID,
+                  conversationId: activeConversationId,
+                  senderName: 'AI',
+                  kind: 'text',
+                  text: content,
+                  createdAt: new Date().toISOString(),
+                };
+                return [...prev, placeholder];
+              });
+            },
+            onDone: ({ userMessage, aiMessage }) => {
+              setMessages((prev) => {
+                const withoutPlaceholder = prev.filter((m) => m._id !== AI_STREAM_PLACEHOLDER_ID);
+                const next = [...withoutPlaceholder];
+                if (!next.some((m) => m._id === userMessage._id)) next.push(userMessage);
+                if (!next.some((m) => m._id === aiMessage._id)) next.push(aiMessage);
+                return next;
+              });
+            },
+            onError: (error) => {
+              setMessages((prev) => {
+                const idx = prev.findIndex((m) => m._id === AI_STREAM_PLACEHOLDER_ID);
+                if (idx >= 0) {
+                  const next = [...prev];
+                  next[idx] = { ...next[idx], text: error };
+                  return next;
+                }
+                return prev;
+              });
+              // Soft notice — stream already carries the friendly error text when possible
+              console.error('[AI Stream]', error);
+            },
+          },
+          abortController.signal
+        );
       } catch (err: any) {
+        if (err?.name === 'AbortError') {
+          // User cancelled by sending another message — ignore
+          return;
+        }
         alert(`AI Generation error: ${err?.message || 'Could not reach AI model'}`);
       } finally {
+        if (aiAbortRef.current === abortController) {
+          aiAbortRef.current = null;
+        }
         setAiGenerating(false);
       }
       return;
