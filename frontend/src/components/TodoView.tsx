@@ -33,10 +33,15 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import ClearAllRoundedIcon from '@mui/icons-material/ClearAllRounded';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
-import { api, Todo, TodoPriority, AIParsedTaskItem } from '@/lib/api';
+import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
+import LoginRoundedIcon from '@mui/icons-material/LoginRounded';
+import Link from 'next/link';
+import { api, Todo, TodoPriority, AIParsedTaskItem, User } from '@/lib/api';
 import { useColorMode } from '@/theme/ColorModeContext';
+import { useSSE } from '@/hooks/useSSE';
 
 interface TodoViewProps {
+  user?: User | null;
   onBackToChat?: () => void;
   initialPrompt?: string;
 }
@@ -48,7 +53,7 @@ const PRIORITY_COLORS: Record<TodoPriority, { label: string; color: string; bg: 
   low: { label: 'Low', color: '#6b7280', bg: 'rgba(107, 114, 128, 0.12)' },
 };
 
-export default function TodoView({ onBackToChat, initialPrompt }: TodoViewProps) {
+export default function TodoView({ user, onBackToChat, initialPrompt }: TodoViewProps) {
   const { mode } = useColorMode();
   const isDark = mode === 'dark';
 
@@ -78,8 +83,38 @@ export default function TodoView({ onBackToChat, initialPrompt }: TodoViewProps)
   const [aiParsedTasks, setAiParsedTasks] = useState<AIParsedTaskItem[]>([]);
   const [savingParsed, setSavingParsed] = useState(false);
 
+  // Real-time sync with SSE
+  const handleTodoCreated = useCallback((data: { todo: Todo }) => {
+    setTodos((prev) => (prev.some((t) => t._id === data.todo._id) ? prev : [data.todo, ...prev]));
+  }, []);
+
+  const handleTodoUpdated = useCallback((data: { todo: Todo }) => {
+    setTodos((prev) => prev.map((t) => (t._id === data.todo._id ? data.todo : t)));
+  }, []);
+
+  const handleTodoDeleted = useCallback((data: { todoId: string }) => {
+    setTodos((prev) => prev.filter((t) => t._id !== data.todoId));
+  }, []);
+
+  const handleTodoCleared = useCallback(() => {
+    setTodos((prev) => prev.filter((t) => t.status !== 'completed'));
+  }, []);
+
+  useSSE({
+    conversationId: 'live',
+    onTodoCreated: handleTodoCreated,
+    onTodoUpdated: handleTodoUpdated,
+    onTodoDeleted: handleTodoDeleted,
+    onTodoCleared: handleTodoCleared,
+  });
+
   // Load Todos
   const loadTodos = useCallback(async () => {
+    if (!user) {
+      setTodos([]);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const res = await api.getTodos({
@@ -93,7 +128,7 @@ export default function TodoView({ onBackToChat, initialPrompt }: TodoViewProps)
     } finally {
       setLoading(false);
     }
-  }, [filterTab, priorityFilter, searchQuery]);
+  }, [user, filterTab, priorityFilter, searchQuery]);
 
   useEffect(() => {
     loadTodos();
@@ -245,6 +280,76 @@ export default function TodoView({ onBackToChat, initialPrompt }: TodoViewProps)
   const totalCount = todos.length;
   const completedCount = todos.filter((t) => t.status === 'completed').length;
   const pendingCount = totalCount - completedCount;
+
+  // Unauthenticated user notice
+  if (!user) {
+    return (
+      <Box
+        sx={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          p: 3,
+        }}
+      >
+        <Paper
+          variant="outlined"
+          sx={{
+            maxWidth: 420,
+            p: 4,
+            borderRadius: 4,
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 2,
+            backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+          }}
+        >
+          <Box
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : 'rgba(5, 150, 105, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: isDark ? '#34d399' : '#059669',
+            }}
+          >
+            <LockOutlinedIcon sx={{ fontSize: 28 }} />
+          </Box>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+              My Tasks is Private
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.875rem', lineHeight: 1.5 }}>
+              Sign in to access your shared task list, create AI-structured todo items, and sync in real-time across all your devices and accounts.
+            </Typography>
+          </Box>
+          <Button
+            component={Link}
+            href="/login"
+            variant="contained"
+            fullWidth
+            startIcon={<LoginRoundedIcon />}
+            sx={{
+              borderRadius: 2.5,
+              py: 1,
+              backgroundColor: isDark ? '#10b981' : '#059669',
+              '&:hover': {
+                backgroundColor: isDark ? '#059669' : '#047857',
+              },
+            }}
+          >
+            Sign in
+          </Button>
+        </Paper>
+      </Box>
+    );
+  }
 
   return (
     <Box
