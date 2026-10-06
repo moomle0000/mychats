@@ -17,6 +17,7 @@ export interface CreateTodoDto {
   deviceId?: string;
   userId?: string | Types.ObjectId | null;
   sourceMessageId?: string | Types.ObjectId | null;
+  prompt?: string | null;
 }
 
 export interface UpdateTodoDto {
@@ -27,6 +28,7 @@ export interface UpdateTodoDto {
   tags?: string[];
   dueDate?: Date | string | null;
   subtasks?: Array<{ title: string; completed: boolean }>;
+  prompt?: string | null;
 }
 
 export interface AIParsedTaskItem {
@@ -36,18 +38,28 @@ export interface AIParsedTaskItem {
   tags: string[];
   subtasks: Array<{ title: string; completed: boolean }>;
   dueDate?: string | null;
+  prompt?: string | null;
 }
 
 const TODO_AI_SYSTEM_PROMPT = `You are an expert Productivity Assistant and Task Structuring AI.
 Your task is to analyze user text (which may be notes, bullet points, reminders, rough thoughts, or messages in English or Arabic) and extract one or more actionable tasks.
 
 ### Guidelines:
-1. Extract distinct tasks. If the input contains multiple goals, return an array of tasks. If it's a single task with multiple steps, return one task with subtasks.
-2. Formulate concise, action-oriented titles (e.g. "Deploy backend to production", "Fix layout bug on mobile").
-3. Assign an appropriate priority: "low", "medium", "high", or "urgent" based on urgency keywords, deadlines, or tone.
-4. Extract relevant tags (e.g. ["dev", "frontend", "bug", "meeting", "personal"]).
-5. If intermediate steps or checklist items are mentioned, format them as subtasks with completed: false.
-6. Provide an ISO date string for dueDate if a specific time/day is mentioned (relative to now), otherwise null.
+1. Language Requirement (STRICT): Always produce all output values (title, description, tags, subtasks, prompt) in ENGLISH ONLY. Even if the user input or source message is in Arabic or another language, translate and structure it into clear, professional English tasks.
+2. Extract distinct tasks. If the input contains multiple goals, return an array of tasks. If it's a single task with multiple steps, return one task with subtasks.
+3. Formulate concise, action-oriented titles in English (e.g. "Deploy backend to production", "Fix layout bug on mobile").
+4. Assign an appropriate priority: "low", "medium", "high", or "urgent" based on urgency keywords, deadlines, or tone.
+5. Extract relevant tags in English (e.g. ["dev", "frontend", "bug", "meeting", "personal"]).
+6. If intermediate steps or checklist items are mentioned, format them as subtasks with completed: false.
+7. Provide an ISO date string for dueDate if a specific time/day is mentioned (relative to now), otherwise null.
+8. Task-Execution Prompt Handoff (CRITICAL):
+   - Assess if the task is an actionable, executable task (e.g. software engineering, code changes, debugging, API creation, refactoring, configuring tools, DevOps, technical writing, research investigation, or any objective achievable by an AI coding/task agent).
+   - If EXECUTION-RELATED, the "prompt" field MUST be a ready-to-run, self-contained prompt in English designed for immediate execution by an AI coding/execution agent (such as Antigravity, Claude, or ChatGPT). The prompt must be comprehensive and directly actionable without requiring further conversation:
+     * Role & Objective: State clearly who the agent is and what precise outcome is required.
+     * Context & Inputs: Provide all relevant background, inputs, constraints, files, or technologies implied by the task.
+     * Step-by-Step Instructions: Enumerate explicit instructions to execute, implement, or resolve the issue.
+     * Acceptance Criteria & Verification: Detail how the agent should verify its work (e.g., test cases, build/type-check commands, output format).
+   - If NOT related to execution (e.g. personal reminder "call mom", physical errand "buy coffee", doctor appointment, general unstructured note with no action item): you MUST set "prompt" to null. Never generate an execution prompt for non-executable or passive personal tasks.
 
 ### Output Format:
 You MUST respond with ONLY valid, raw JSON (no markdown formatting, no code block backticks, no explanations).
@@ -62,7 +74,8 @@ JSON schema:
       "subtasks": [
         { "title": "Subtask title", "completed": false }
       ],
-      "dueDate": "YYYY-MM-DD" or null
+      "dueDate": "YYYY-MM-DD" or null,
+      "prompt": "You are an autonomous AI agent...\\n\\n### Objective:\\n...\\n### Instructions:\\n1. ...\\n### Verification:\\n..." or null
     }
   ]
 }`;
@@ -111,6 +124,7 @@ export class TodoService {
       deviceId: dto.deviceId || '',
       userId: dto.userId && Types.ObjectId.isValid(String(dto.userId)) ? new Types.ObjectId(String(dto.userId)) : null,
       sourceMessageId: dto.sourceMessageId && Types.ObjectId.isValid(String(dto.sourceMessageId)) ? new Types.ObjectId(String(dto.sourceMessageId)) : null,
+      prompt: dto.prompt && dto.prompt.trim() ? dto.prompt.trim() : null,
     });
 
     await this.sseService.broadcast('todo:created', { todo });
@@ -131,6 +145,7 @@ export class TodoService {
     if (dto.tags !== undefined) updateData.tags = dto.tags;
     if (dto.dueDate !== undefined) updateData.dueDate = dto.dueDate ? new Date(dto.dueDate) : null;
     if (dto.subtasks !== undefined) updateData.subtasks = dto.subtasks;
+    if (dto.prompt !== undefined) updateData.prompt = dto.prompt && dto.prompt.trim() ? dto.prompt.trim() : null;
 
     const updated = await TodoModel.findByIdAndUpdate(id, updateData, { new: true });
     if (!updated) {
@@ -171,6 +186,10 @@ export class TodoService {
     }
 
     try {
+      // Long-running AI call: execution-prompt generation can take 2-3+ min
+      // on llama.cpp (CPU). Allow up to 5 min so the task completes instead
+      // of hitting the old 60s axios timeout (which surfaced as
+      // "Failed to proxy ... socket hang up" on the frontend).
       const response = await axios.post(
         `${AI_API_URL}/chat/completions`,
         {
@@ -179,12 +198,12 @@ export class TodoService {
             { role: 'user', content: text.trim() },
           ],
           temperature: 0.3,
-          max_tokens: 1500,
+          max_tokens: 3500,
           stream: false,
         },
         {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 60000,
+          timeout: 300000,
         }
       );
 
@@ -210,10 +229,15 @@ export class TodoService {
               }))
             : [],
           dueDate: t.dueDate || null,
+          prompt: typeof t.prompt === 'string' && t.prompt.trim() ? t.prompt.trim() : null,
         }));
       }
     } catch (err: any) {
-      console.warn('[TodoService] AI parse fallback or JSON parse error:', err?.message || err);
+      const isTimeout = err?.code === 'ECONNABORTED' || /timeout/i.test(err?.message || '');
+      console.warn(
+        `[TodoService] AI parse ${isTimeout ? 'timed out after 5min' : 'fallback/JSON error'}:`,
+        err?.message || err
+      );
     }
 
     // Fallback: create single structured task from the raw input
@@ -226,6 +250,7 @@ export class TodoService {
         tags: ['quick-task'],
         subtasks: [],
         dueDate: null,
+        prompt: null,
       },
     ];
   }

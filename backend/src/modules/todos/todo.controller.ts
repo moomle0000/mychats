@@ -69,6 +69,10 @@ export class TodoController {
 
   public aiParseTasks = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // Allow this long-running AI endpoint to finish (>2 min). Without this,
+      // Node/Express default timeouts can reset the socket mid-generation.
+      req.setTimeout(320000);
+      res.setTimeout(320000);
       const { text } = req.body;
       const tasks = await this.todoService.parseNaturalLanguageToTasks(text);
       res.status(200).json({ data: tasks, message: 'Tasks parsed with AI successfully' });

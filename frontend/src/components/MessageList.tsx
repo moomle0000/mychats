@@ -64,6 +64,7 @@ export default function MessageList({
             tags: t.tags,
             subtasks: t.subtasks,
             dueDate: t.dueDate,
+            prompt: t.prompt,
             sourceMessageId: msg._id,
             status: 'pending',
           });
@@ -81,7 +82,12 @@ export default function MessageList({
       }
       setTimeout(() => setTaskSuccessMsg(null), 3500);
     } catch (err: any) {
-      alert(`Failed to create task from message: ${err?.message || 'Error'}`);
+      const msg: string = err?.message || 'Error';
+      if (/timed out|still organizing/i.test(msg)) {
+        alert('AI is taking longer than 5 minutes. Please try again with shorter text.');
+      } else {
+        alert(`Failed to create task from message: ${msg}`);
+      }
     } finally {
       setConvertingTaskId(null);
     }
@@ -252,7 +258,7 @@ export default function MessageList({
                 {!isReadOnly && (
                   <Box className="msg-actions" sx={{ display: 'flex', alignItems: 'center', opacity: 0, transition: 'opacity 0.15s ease' }}>
                     {msg.text && (
-                      <Tooltip title="Convert to Task (AI)">
+                      <Tooltip title={convertingTaskId === msg._id ? 'Converting… may take up to 3 min, please wait' : 'Convert to Task (AI)'}>
                         <IconButton
                           size="small"
                           onClick={() => handleCreateTaskFromMessage(msg)}

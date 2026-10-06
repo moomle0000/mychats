@@ -82,6 +82,7 @@ export interface Todo {
   deviceId?: string;
   userId?: string | null;
   sourceMessageId?: string | null;
+  prompt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,6 +94,7 @@ export interface AIParsedTaskItem {
   tags: string[];
   subtasks: Array<{ title: string; completed: boolean }>;
   dueDate?: string | null;
+  prompt?: string | null;
 }
 
 const AUTH_TOKEN_KEY = 'chat_auth_token';
@@ -120,7 +122,7 @@ export const setAuthToken = (token: string | null) => {
   }
 };
 
-async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(endpoint: string, options: RequestInit = {}, timeoutMs?: number): Promise<T> {
   const isBrowser = typeof window !== 'undefined';
   const url = isBrowser ? endpoint : `${BACKEND_URL}${endpoint}`;
   const headers = new Headers(options.headers || {});
@@ -153,9 +155,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers.set('Content-Type', 'application/json');
   }
 
+  // Optional long-timeout support (e.g. AI parse can take 2-5 min).
+  // Uses AbortSignal.timeout when available so the UI keeps waiting
+  // instead of the browser/Next proxy hanging up early.
+  let signal = options.signal as AbortSignal | undefined;
+  if (timeoutMs && !signal && typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+    signal = AbortSignal.timeout(timeoutMs);
+  }
+
   const res = await fetch(url, {
     ...options,
     headers,
+    signal,
     credentials: 'include',
   });
 
@@ -423,9 +434,56 @@ export const api = {
   },
 
   async aiParseTasks(text: string): Promise<{ data: AIParsedTaskItem[] }> {
-    return request('/api/todos/ai-parse', {
-      method: 'POST',
-      body: JSON.stringify({ text }),
-    });
+    // Long-running AI call (execution-prompt handoff can take 2-5 min).
+    // Call the backend directly (absolute BACKEND_URL) instead of the
+    // relative /api/... path so we bypass the Next.js rewrites proxy,
+    // which was resetting the socket (ECONNRESET / "Failed to proxy"
+    // ... "socket hang up"). Wait up to 5 min for completion.
+    const AI_PARSE_TIMEOUT_MS = 300000;
+    const isBrowser = typeof window !== 'undefined';
+    const url = isBrowser ? `${BACKEND_URL}/api/todos/ai-parse` : '/api/todos/ai-parse';
+
+    const headers = new Headers({ 'Content-Type': 'application/json' });
+    if (!headers.has('x-device-id')) {
+      const dId = getOrCreateDeviceId();
+      if (dId) headers.set('x-device-id', encodeURIComponent(dId));
+    }
+    if (!headers.has('x-device-label')) {
+      const dLabel = getDeviceLabel();
+      if (dLabel) {
+        try {
+          headers.set('x-device-label', encodeURIComponent(dLabel));
+        } catch {
+          // ignore
+        }
+      }
+    }
+    const token = getAuthToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+
+    let signal: AbortSignal | undefined;
+    if (typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal) {
+      signal = AbortSignal.timeout(AI_PARSE_TIMEOUT_MS);
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text }),
+        signal,
+        credentials: 'include',
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || `Request failed with status ${res.status}`);
+      }
+      return data;
+    } catch (err: any) {
+      if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+        throw new Error('AI is still organizing (timed out after 5 min). Please try again with shorter text.');
+      }
+      throw err;
+    }
   },
 };

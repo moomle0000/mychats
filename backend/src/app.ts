@@ -33,12 +33,20 @@ export class App {
   }
 
   public listen() {
-    this.app.listen(this.port, () => {
+    const server = this.app.listen(this.port, () => {
       logger.info(`=================================`);
       logger.info(`======= ENV: ${this.env} =======`);
       logger.info(`🚀  chatSSE API listening on port ${this.port}`);
       logger.info(`=================================`);
     });
+
+    // Long AI generations (e.g. /api/todos/ai-parse with execution-prompt
+    // handoff) can take 2-5 min. Raise Node HTTP timeouts so the socket is
+    // not reset mid-response (frontend saw this as ECONNRESET/socket hang up).
+    server.requestTimeout = 320000;
+    server.headersTimeout = 325000;
+    server.keepAliveTimeout = 65000;
+    server.timeout = 320000;
 
     // Re-sync fee invoice + contract indexes on startup. Older
     // deployments may carry orphan unique indexes that no longer

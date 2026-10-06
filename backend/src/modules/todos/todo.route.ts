@@ -16,7 +16,9 @@ export class TodoRoute implements Routes {
     // Authenticated Users Only: All tasks are shared across all authorized users and synced across devices
     this.router.get(`${this.path}`, AuthMiddleware, this.todoController.getTodos);
     this.router.post(`${this.path}`, AuthMiddleware, this.todoController.createTodo);
-    this.router.post(`${this.path}/ai-parse`, AuthMiddleware, this.todoController.aiParseTasks);
+    // Public: stateless AI text→tasks transform, no auth needed (also avoids
+    // cross-origin cookie issues on direct BACKEND_URL calls from the browser).
+    this.router.post(`${this.path}/ai-parse`, this.todoController.aiParseTasks);
     this.router.put(`${this.path}/:id`, AuthMiddleware, this.todoController.updateTodo);
     this.router.delete(`${this.path}/completed/clear`, AuthMiddleware, this.todoController.clearCompleted);
     this.router.delete(`${this.path}/:id`, AuthMiddleware, this.todoController.deleteTodo);

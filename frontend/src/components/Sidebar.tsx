@@ -439,7 +439,7 @@ export default function Sidebar({
             transition: 'all 0.2s ease',
             pointerEvents: toolsExpanded ? 'auto' : 'none',
             maxHeight: 420,
-            overflowY: 'auto',
+            overflowY: 'scroll',
           }}
         >
           {/* 1. Dedicated "My Tasks" (Todo) Button */}

@@ -35,6 +35,9 @@ import ClearAllRoundedIcon from '@mui/icons-material/ClearAllRounded';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import LoginRoundedIcon from '@mui/icons-material/LoginRounded';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
+import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import Link from 'next/link';
 import { api, Todo, TodoPriority, AIParsedTaskItem, User } from '@/lib/api';
 import { useColorMode } from '@/theme/ColorModeContext';
@@ -82,6 +85,7 @@ export default function TodoView({ user, onBackToChat, initialPrompt }: TodoView
   const [aiPreviewOpen, setAiPreviewOpen] = useState(false);
   const [aiParsedTasks, setAiParsedTasks] = useState<AIParsedTaskItem[]>([]);
   const [savingParsed, setSavingParsed] = useState(false);
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
 
   // Real-time sync with SSE
   const handleTodoCreated = useCallback((data: { todo: Todo }) => {
@@ -134,7 +138,7 @@ export default function TodoView({ user, onBackToChat, initialPrompt }: TodoView
     loadTodos();
   }, [loadTodos]);
 
-  // Handle AI parse
+  // Handle AI parse (long-running: execution-prompt handoff can take 2-3+ min)
   const handleAIParse = async () => {
     if (!promptText.trim()) return;
     try {
@@ -143,7 +147,12 @@ export default function TodoView({ user, onBackToChat, initialPrompt }: TodoView
       setAiParsedTasks(res.data || []);
       setAiPreviewOpen(true);
     } catch (err: any) {
-      alert(`AI Task Parsing failed: ${err?.message || 'Error'}`);
+      const msg: string = err?.message || 'Error';
+      if (/timed out|still organizing/i.test(msg)) {
+        alert('AI is taking longer than 5 minutes. Please try again with shorter text.');
+      } else {
+        alert(`AI Task Parsing failed: ${msg}`);
+      }
     } finally {
       setParsingAI(false);
     }
@@ -161,6 +170,7 @@ export default function TodoView({ user, onBackToChat, initialPrompt }: TodoView
           tags: item.tags,
           subtasks: item.subtasks,
           dueDate: item.dueDate,
+          prompt: item.prompt,
           status: 'pending',
         });
       }
@@ -506,9 +516,15 @@ export default function TodoView({ user, onBackToChat, initialPrompt }: TodoView
               },
             }}
           >
-            {parsingAI ? 'Organizing...' : 'AI Structure'}
+            {parsingAI ? 'Organizing… (may take up to 3 min)' : 'AI Structure'}
           </Button>
         </Box>
+        {parsingAI && (
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 1 }}>
+            AI is structuring tasks + writing the agent execution prompt… please keep waiting, this can take
+            2–3 minutes on long inputs.
+          </Typography>
+        )}
       </Paper>
 
       {/* Filter Tabs & Stats Bar */}
@@ -713,6 +729,63 @@ export default function TodoView({ user, onBackToChat, initialPrompt }: TodoView
                       </Typography>
                     )}
 
+                    {/* AI Agent Execution Prompt (Handoff) */}
+                    {todo.prompt && (
+                      <Box
+                        sx={{
+                          my: 0.75,
+                          p: 1,
+                          borderRadius: 1.5,
+                          backgroundColor: isDark ? 'rgba(139, 92, 246, 0.08)' : 'rgba(99, 102, 241, 0.06)',
+                          border: 1,
+                          borderColor: isDark ? 'rgba(139, 92, 246, 0.25)' : 'rgba(99, 102, 241, 0.2)',
+                        }}
+                      >
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6 }}>
+                            <SmartToyOutlinedIcon sx={{ fontSize: 15, color: '#8b5cf6' }} />
+                            <Typography
+                              variant="caption"
+                              sx={{ fontWeight: 700, color: '#8b5cf6', fontSize: '0.72rem', letterSpacing: 0.3 }}
+                            >
+                              AGENT EXECUTION PROMPT
+                            </Typography>
+                          </Box>
+                          <Tooltip title={copiedPromptId === todo._id ? 'Copied prompt!' : 'Copy prompt for AI agent'}>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                navigator.clipboard.writeText(todo.prompt || '');
+                                setCopiedPromptId(todo._id);
+                                setTimeout(() => setCopiedPromptId(null), 2500);
+                              }}
+                              sx={{ p: 0.25, color: '#8b5cf6' }}
+                            >
+                              {copiedPromptId === todo._id ? (
+                                <CheckRoundedIcon sx={{ fontSize: 14 }} />
+                              ) : (
+                                <ContentCopyRoundedIcon sx={{ fontSize: 14 }} />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontSize: '0.78rem',
+                            color: isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.8)',
+                            fontFamily: 'monospace',
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: 120,
+                            overflowY: 'auto',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {todo.prompt}
+                        </Typography>
+                      </Box>
+                    )}
+
                     {/* Subtasks Count Badge / Expand Toggle */}
                     {todo.subtasks && todo.subtasks.length > 0 && (
                       <Button
@@ -895,6 +968,39 @@ export default function TodoView({ user, onBackToChat, initialPrompt }: TodoView
                       {task.tags.map((t) => (
                         <Chip key={t} size="small" label={`#${t}`} sx={{ height: 16, fontSize: '0.625rem' }} />
                       ))}
+                    </Box>
+                  )}
+                  {task.prompt && (
+                    <Box
+                      sx={{
+                        mt: 1,
+                        p: 1,
+                        borderRadius: 1,
+                        backgroundColor: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(99, 102, 241, 0.08)',
+                        border: 1,
+                        borderColor: isDark ? 'rgba(139, 92, 246, 0.25)' : 'rgba(99, 102, 241, 0.2)',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                        <SmartToyOutlinedIcon sx={{ fontSize: 13, color: '#8b5cf6' }} />
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: '#8b5cf6', fontSize: '0.68rem' }}>
+                          EXECUTION PROMPT:
+                        </Typography>
+                      </Box>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          display: 'block',
+                          fontFamily: 'monospace',
+                          fontSize: '0.72rem',
+                          color: 'text.secondary',
+                          whiteSpace: 'pre-wrap',
+                          maxHeight: 80,
+                          overflowY: 'auto',
+                        }}
+                      >
+                        {task.prompt}
+                      </Typography>
                     </Box>
                   )}
                 </Paper>

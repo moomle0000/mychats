@@ -20,6 +20,7 @@ export interface ITodo extends Document {
   deviceId?: string;
   userId?: Types.ObjectId | null;
   sourceMessageId?: Types.ObjectId | null;
+  prompt?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,6 +37,7 @@ const TodoSchema = new Schema<ITodo>(
   {
     title: { type: String, required: true, trim: true },
     description: { type: String, default: '', trim: true },
+    prompt: { type: String, default: null, trim: true },
     status: {
       type: String,
       enum: ['pending', 'in_progress', 'completed'],
