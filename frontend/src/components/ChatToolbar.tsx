@@ -130,7 +130,7 @@ export default function ChatToolbar({
       return (
         <Chip
           size="small"
-          label="Archived Read-Only"
+          label="Saved Chat"
           variant="outlined"
           sx={{
             fontWeight: 600,
@@ -319,7 +319,7 @@ export default function ChatToolbar({
           <DialogContentText>
             {isTool
               ? 'This will clear all messages in this tool for your device only. Your Live Chat and other tools will remain unaffected.'
-              : 'This will archive the current live conversation and save all messages into the archives. A clean new chat will be started immediately for all connected devices.'}
+              : 'This will save the current conversation to your history (named after its first line) and start a clean new chat for all connected devices. You can reopen the saved conversation anytime and keep posting in it.'}
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ pb: 2, px: 3 }}>

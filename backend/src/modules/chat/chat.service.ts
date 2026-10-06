@@ -292,7 +292,23 @@ export class ChatService {
 
     const now = new Date();
     const dateStr = now.toISOString().replace('T', ' ').substring(0, 16);
-    const archiveTitle = `Chat ${dateStr} (${count} msgs)`;
+    // Use the first line of the first (non-AI) text message as the conversation name
+    const firstMsg = await MessageModel.findOne({
+      conversationId: live._id,
+      senderName: { $ne: 'AI' },
+      text: { $nin: ['', null] },
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+    const firstLine = (firstMsg?.text || '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l.length > 0) || '';
+    const archiveTitle = firstLine
+      ? firstLine.length > 60
+        ? `${firstLine.slice(0, 60)}…`
+        : firstLine
+      : `Chat ${dateStr} (${count} msgs)`;
 
     live.status = 'archived';
     live.title = archiveTitle;

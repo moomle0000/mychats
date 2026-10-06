@@ -260,11 +260,9 @@ export default function ChatPage() {
       return;
     }
 
-    // Normal Live Chat Mode
-    if (activeConversationId === 'live') {
-      const res = await api.sendMessage({ text, imageUrl, conversationId: 'live' });
-      handleNewMessage(res.data);
-    }
+    // Normal Chat Mode (Live Chat or a saved conversation — both stay writable)
+    const res = await api.sendMessage({ text, imageUrl, conversationId: activeConversationId });
+    handleNewMessage(res.data);
   };
 
   // Delete message
@@ -312,7 +310,8 @@ export default function ChatPage() {
   };
 
   const isLive = activeConversationId === 'live';
-  const isReadOnly = !isLive && !isToolChat;
+  // Saved conversations remain active/writable — nothing is read-only anymore
+  const isReadOnly = false;
 
   return (
     <Box
