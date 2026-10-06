@@ -574,9 +574,17 @@ export default function Sidebar({
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 0.5,
                         }}
                       >
-                        {tool.name}
+                        <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {tool.name}
+                        </Box>
+                        {tool.visibility === 'private' && (
+                          <LockOutlinedIcon sx={{ fontSize: 12, opacity: 0.7, flexShrink: 0 }} />
+                        )}
                       </Typography>
                       <Typography
                         variant="caption"

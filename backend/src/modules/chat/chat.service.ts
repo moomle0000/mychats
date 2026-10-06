@@ -18,6 +18,7 @@ export interface SendAIMessagePayload {
   deviceId?: string;
   deviceLabel?: string;
   systemPrompt?: string;
+  isAuthenticated?: boolean;
 }
 
 export interface StreamAIMessageHandlers {
@@ -39,6 +40,8 @@ export interface CreateMessageDto {
   deviceLabel?: string;
   mime?: string;
   size?: number;
+  /** When true, private tools are accessible. Defaults to false (anonymous). */
+  isAuthenticated?: boolean;
 }
 
 @Service()
@@ -78,13 +81,21 @@ export class ChatService {
     return translator;
   }
 
-  public async getOrCreateToolConversation(toolId: string, deviceId: string = ''): Promise<IConversation> {
+  public async getOrCreateToolConversation(
+    toolId: string,
+    deviceId: string = '',
+    isAuthenticated: boolean = false
+  ): Promise<IConversation> {
     const cleanId = toolId.replace('tool:', '');
     if (!Types.ObjectId.isValid(cleanId)) {
       throw new HttpException(400, 'Invalid tool ID');
     }
     const tool = await ToolModel.findById(cleanId);
     if (!tool) {
+      throw new HttpException(404, 'Tool not found');
+    }
+    // Private tools must not be usable (or discoverable) by anonymous callers
+    if (tool.visibility === 'private' && !isAuthenticated) {
       throw new HttpException(404, 'Tool not found');
     }
     const filter: any = { status: 'tool', toolId: tool._id };
@@ -110,7 +121,8 @@ export class ChatService {
     conversationId?: string,
     limit: number = 50,
     before?: string,
-    deviceId: string = ''
+    deviceId: string = '',
+    isAuthenticated: boolean = false
   ): Promise<{ conversation: IConversation; messages: IMessage[] }> {
     let conv: IConversation | null = null;
     if (!conversationId || conversationId === 'live') {
@@ -118,11 +130,15 @@ export class ChatService {
     } else if (conversationId === 'translator') {
       conv = await this.getOrCreateTranslatorConversation(deviceId);
     } else if (conversationId.startsWith('tool:') || (Types.ObjectId.isValid(conversationId) && (await ToolModel.exists({ _id: conversationId })))) {
-      conv = await this.getOrCreateToolConversation(conversationId, deviceId);
+      conv = await this.getOrCreateToolConversation(conversationId, deviceId, isAuthenticated);
     } else {
       conv = await ConversationModel.findById(conversationId);
       if (!conv) {
         throw new HttpException(404, 'Conversation not found');
+      }
+      // Archived/live object-id conversations are fine; tool-status convs still need visibility check
+      if (conv.status === 'tool' && conv.toolId) {
+        await this.getOrCreateToolConversation(String(conv.toolId), deviceId, isAuthenticated);
       }
     }
 
@@ -144,17 +160,21 @@ export class ChatService {
   }
 
   public async createMessage(payload: CreateMessageDto): Promise<IMessage> {
+    const isAuthenticated = !!payload.isAuthenticated;
     let targetConv: IConversation;
     if (!payload.conversationId || payload.conversationId === 'live') {
       targetConv = await this.getOrCreateLiveConversation();
     } else if (payload.conversationId === 'translator') {
       targetConv = await this.getOrCreateTranslatorConversation(payload.deviceId || '');
     } else if (payload.conversationId.startsWith('tool:') || (Types.ObjectId.isValid(payload.conversationId) && (await ToolModel.exists({ _id: payload.conversationId })))) {
-      targetConv = await this.getOrCreateToolConversation(payload.conversationId, payload.deviceId || '');
+      targetConv = await this.getOrCreateToolConversation(payload.conversationId, payload.deviceId || '', isAuthenticated);
     } else {
       const conv = await ConversationModel.findById(payload.conversationId);
       if (!conv) {
         throw new HttpException(404, 'Conversation not found');
+      }
+      if (conv.status === 'tool' && conv.toolId) {
+        await this.getOrCreateToolConversation(String(conv.toolId), payload.deviceId || '', isAuthenticated);
       }
       targetConv = conv;
     }
@@ -227,6 +247,7 @@ export class ChatService {
       deviceId: payload.deviceId,
       deviceLabel: payload.deviceLabel || '',
       kind: 'text',
+      isAuthenticated: !!payload.isAuthenticated,
     });
     handlers.onUserMessage(userMessage);
 
@@ -366,6 +387,7 @@ export class ChatService {
       senderName: 'AI',
       deviceId: payload.deviceId,
       kind: 'text',
+      isAuthenticated: !!payload.isAuthenticated,
     });
 
     logger.info(
@@ -436,8 +458,12 @@ export class ChatService {
     return { cleared: true };
   }
 
-  public async clearToolConversation(toolId: string, deviceId: string = ''): Promise<{ cleared: boolean }> {
-    const conv = await this.getOrCreateToolConversation(toolId, deviceId);
+  public async clearToolConversation(
+    toolId: string,
+    deviceId: string = '',
+    isAuthenticated: boolean = false
+  ): Promise<{ cleared: boolean }> {
+    const conv = await this.getOrCreateToolConversation(toolId, deviceId, isAuthenticated);
     await MessageModel.deleteMany({ conversationId: conv._id });
     conv.messageCount = 0;
     conv.previewText = '';

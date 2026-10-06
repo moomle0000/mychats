@@ -1,6 +1,6 @@
 import { Service } from 'typedi';
 import { Types } from 'mongoose';
-import { ToolModel, ITool } from './tool.model';
+import { ToolModel, ITool, ToolVisibility } from './tool.model';
 import { HttpException } from '@exceptions/httpException';
 
 export const DEFAULT_TRANSLATOR_PROMPT = `You are an expert Technical Translator and Prompt Localization AI. Your primary objective is to translate user inputs from Arabic (both Modern Standard Arabic and technical Arabizi/informal dialects) into precise, structured, and idiomatically accurate English suitable for consumption by downstream AI agents, LLM coding assistants, and technical pipelines.
@@ -29,9 +29,19 @@ export const DEFAULT_TRANSLATOR_PROMPT = `You are an expert Technical Translator
 
 ### Response Format: Output ONLY the clean, translated English prompt ready to be ingested by the target AI agent.`;
 
+const normalizeVisibility = (value?: string): ToolVisibility => {
+  return value === 'private' ? 'private' : 'public';
+};
+
 @Service()
 export class ToolService {
   public async ensureDefaultTools(): Promise<void> {
+    // Backfill visibility on legacy documents that predate the field
+    await ToolModel.updateMany(
+      { $or: [{ visibility: { $exists: false } }, { visibility: null }] },
+      { $set: { visibility: 'public' } }
+    );
+
     const existing = await ToolModel.findOne({ name: 'Technical Translator' });
     if (!existing) {
       await ToolModel.create({
@@ -40,21 +50,31 @@ export class ToolService {
         systemPrompt: DEFAULT_TRANSLATOR_PROMPT,
         icon: 'translate',
         isBuiltin: true,
+        visibility: 'public',
       });
     }
   }
 
-  public async getAllTools(): Promise<ITool[]> {
+  /**
+   * List tools visible to the caller.
+   * Unauthenticated callers only receive public tools; authenticated callers receive all.
+   */
+  public async getAllTools(isAuthenticated: boolean = false): Promise<ITool[]> {
     await this.ensureDefaultTools();
-    return ToolModel.find().sort({ isBuiltin: -1, createdAt: 1 }).lean() as unknown as ITool[];
+    const filter = isAuthenticated ? {} : { visibility: 'public' };
+    return ToolModel.find(filter).sort({ isBuiltin: -1, createdAt: 1 }).lean() as unknown as ITool[];
   }
 
-  public async getToolById(id: string): Promise<ITool> {
+  public async getToolById(id: string, isAuthenticated: boolean = false): Promise<ITool> {
     if (!Types.ObjectId.isValid(id)) {
       throw new HttpException(400, 'Invalid tool ID');
     }
     const tool = await ToolModel.findById(id);
     if (!tool) {
+      throw new HttpException(404, 'Tool not found');
+    }
+    if (tool.visibility === 'private' && !isAuthenticated) {
+      // Hide existence from anonymous callers
       throw new HttpException(404, 'Tool not found');
     }
     return tool;
@@ -65,6 +85,7 @@ export class ToolService {
     description?: string;
     systemPrompt: string;
     icon?: string;
+    visibility?: ToolVisibility | string;
     createdBy?: Types.ObjectId | string | null;
   }): Promise<ITool> {
     if (!data.name || !data.name.trim()) {
@@ -79,6 +100,7 @@ export class ToolService {
       description: (data.description || '').trim(),
       systemPrompt: data.systemPrompt.trim(),
       icon: data.icon || 'auto_awesome',
+      visibility: normalizeVisibility(data.visibility),
       isBuiltin: false,
       createdBy: data.createdBy ? new Types.ObjectId(String(data.createdBy)) : null,
     });
@@ -93,6 +115,7 @@ export class ToolService {
       description?: string;
       systemPrompt?: string;
       icon?: string;
+      visibility?: ToolVisibility | string;
     }
   ): Promise<ITool> {
     if (!Types.ObjectId.isValid(id)) {
@@ -104,6 +127,7 @@ export class ToolService {
     if (data.description !== undefined) updates.description = data.description.trim();
     if (data.systemPrompt !== undefined) updates.systemPrompt = data.systemPrompt.trim();
     if (data.icon !== undefined) updates.icon = data.icon.trim();
+    if (data.visibility !== undefined) updates.visibility = normalizeVisibility(data.visibility);
 
     const tool = await ToolModel.findByIdAndUpdate(id, { $set: updates }, { new: true });
     if (!tool) {

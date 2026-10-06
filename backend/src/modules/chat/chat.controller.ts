@@ -38,14 +38,15 @@ export class ChatController {
     }
   };
 
-  public getMessages = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  public getMessages = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
       const conversationId = req.query.conversationId as string;
       const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
       const before = req.query.before as string;
       const { deviceId } = this.extractDeviceMeta(req);
+      const isAuthenticated = !!req.user;
 
-      const data = await this.chatService.getMessages(conversationId, limit, before, deviceId);
+      const data = await this.chatService.getMessages(conversationId, limit, before, deviceId, isAuthenticated);
       res.status(200).json({ data, message: 'Messages fetched successfully' });
     } catch (error) {
       next(error);
@@ -71,6 +72,7 @@ export class ChatController {
         senderName,
         deviceId,
         deviceLabel,
+        isAuthenticated: !!user,
       });
 
       res.status(201).json({ data: message, message: 'Message sent' });
@@ -142,6 +144,7 @@ export class ChatController {
           deviceId,
           deviceLabel,
           systemPrompt,
+          isAuthenticated: !!user,
         },
         {
           onUserMessage: (userMessage) => writeEvent('user_message', userMessage),
@@ -202,17 +205,18 @@ export class ChatController {
     }
   };
 
-  public clear = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  public clear = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
       const convId = req.body?.conversationId || (req.query?.conversationId as string);
       const { deviceId } = this.extractDeviceMeta(req);
+      const isAuthenticated = !!req.user;
       if (convId === 'translator') {
         const result = await this.chatService.clearTranslator(deviceId);
         res.status(200).json({ data: result, message: 'Translator chat cleared' });
         return;
       }
       if (convId && (convId.startsWith('tool:') || convId.length === 24)) {
-        const result = await this.chatService.clearToolConversation(convId, deviceId);
+        const result = await this.chatService.clearToolConversation(convId, deviceId, isAuthenticated);
         res.status(200).json({ data: result, message: 'Tool chat cleared' });
         return;
       }

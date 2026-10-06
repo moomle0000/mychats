@@ -6,19 +6,21 @@ import { RequestWithUser } from '@interfaces/auth.interface';
 export class ToolController {
   public toolService = Container.get(ToolService);
 
-  public getTools = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  public getTools = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const data = await this.toolService.getAllTools();
+      const isAuthenticated = !!req.user;
+      const data = await this.toolService.getAllTools(isAuthenticated);
       res.status(200).json({ data, message: 'Tools retrieved successfully' });
     } catch (error) {
       next(error);
     }
   };
 
-  public getTool = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  public getTool = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id;
-      const data = await this.toolService.getToolById(id);
+      const isAuthenticated = !!req.user;
+      const data = await this.toolService.getToolById(id, isAuthenticated);
       res.status(200).json({ data, message: 'Tool retrieved successfully' });
     } catch (error) {
       next(error);
@@ -27,7 +29,7 @@ export class ToolController {
 
   public createTool = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { name, description, systemPrompt, icon } = req.body;
+      const { name, description, systemPrompt, icon, visibility } = req.body;
       const userId = req.user ? req.user._id : null;
 
       const data = await this.toolService.createTool({
@@ -35,6 +37,7 @@ export class ToolController {
         description,
         systemPrompt,
         icon,
+        visibility,
         createdBy: userId,
       });
 
@@ -47,13 +50,14 @@ export class ToolController {
   public updateTool = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
       const id = req.params.id;
-      const { name, description, systemPrompt, icon } = req.body;
+      const { name, description, systemPrompt, icon, visibility } = req.body;
 
       const data = await this.toolService.updateTool(id, {
         name,
         description,
         systemPrompt,
         icon,
+        visibility,
       });
 
       res.status(200).json({ data, message: 'Tool updated successfully' });

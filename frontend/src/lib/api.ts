@@ -57,6 +57,7 @@ export interface AITool {
   systemPrompt: string;
   icon?: string;
   isBuiltin?: boolean;
+  visibility?: 'public' | 'private';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -517,14 +518,29 @@ export const api = {
     return request(`/api/tools/${id}`);
   },
 
-  async createTool(payload: { name: string; description?: string; systemPrompt: string; icon?: string }): Promise<{ data: AITool }> {
+  async createTool(payload: {
+    name: string;
+    description?: string;
+    systemPrompt: string;
+    icon?: string;
+    visibility?: 'public' | 'private';
+  }): Promise<{ data: AITool }> {
     return request('/api/tools', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
-  async updateTool(id: string, payload: { name?: string; description?: string; systemPrompt?: string; icon?: string }): Promise<{ data: AITool }> {
+  async updateTool(
+    id: string,
+    payload: {
+      name?: string;
+      description?: string;
+      systemPrompt?: string;
+      icon?: string;
+      visibility?: 'public' | 'private';
+    }
+  ): Promise<{ data: AITool }> {
     return request(`/api/tools/${id}`, {
       method: 'PUT',
       body: JSON.stringify(payload),

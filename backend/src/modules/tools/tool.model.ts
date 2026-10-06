@@ -1,5 +1,7 @@
 import { model, Schema, Document, Types } from 'mongoose';
 
+export type ToolVisibility = 'public' | 'private';
+
 export interface ITool extends Document {
   _id: Types.ObjectId;
   name: string;
@@ -7,6 +9,7 @@ export interface ITool extends Document {
   systemPrompt: string;
   icon?: string;
   isBuiltin?: boolean;
+  visibility: ToolVisibility;
   createdBy?: Types.ObjectId | null;
   createdAt: Date;
   updatedAt: Date;
@@ -35,6 +38,12 @@ const toolSchema: Schema = new Schema(
     isBuiltin: {
       type: Boolean,
       default: false,
+    },
+    visibility: {
+      type: String,
+      enum: ['public', 'private'],
+      default: 'public',
+      index: true,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

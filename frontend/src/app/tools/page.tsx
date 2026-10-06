@@ -24,6 +24,10 @@ import {
   AppBar,
   Toolbar,
   Paper,
+  ToggleButton,
+  ToggleButtonGroup,
+  FormControl,
+  FormLabel,
 } from '@mui/material';
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
@@ -39,11 +43,15 @@ import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import ForumRoundedIcon from '@mui/icons-material/ForumRounded';
 import Brightness4RoundedIcon from '@mui/icons-material/Brightness4Rounded';
 import Brightness7RoundedIcon from '@mui/icons-material/Brightness7Rounded';
+import PublicRoundedIcon from '@mui/icons-material/PublicRounded';
+import LockRoundedIcon from '@mui/icons-material/LockRounded';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, AITool, User } from '@/lib/api';
 import { useColorMode } from '@/theme/ColorModeContext';
 import { TRANSLATOR_SYSTEM_PROMPT } from '@/lib/constants';
+
+type ToolVisibility = 'public' | 'private';
 
 const AVAILABLE_ICONS = [
   { id: 'translate', label: 'Translate', icon: TranslateRoundedIcon },
@@ -90,6 +98,7 @@ export default function ToolsPage() {
   const [formDescription, setFormDescription] = useState('');
   const [formPrompt, setFormPrompt] = useState('');
   const [formIcon, setFormIcon] = useState('auto_awesome');
+  const [formVisibility, setFormVisibility] = useState<ToolVisibility>('public');
   const [submitting, setSubmitting] = useState(false);
 
   // Delete Confirm State
@@ -129,6 +138,7 @@ export default function ToolsPage() {
     setFormDescription('');
     setFormPrompt('');
     setFormIcon('auto_awesome');
+    setFormVisibility('public');
     setDialogOpen(true);
   };
 
@@ -138,6 +148,7 @@ export default function ToolsPage() {
     setFormDescription(tool.description || '');
     setFormPrompt(tool.systemPrompt);
     setFormIcon(tool.icon || 'auto_awesome');
+    setFormVisibility(tool.visibility === 'private' ? 'private' : 'public');
     setDialogOpen(true);
   };
 
@@ -159,6 +170,7 @@ export default function ToolsPage() {
           description: formDescription.trim(),
           systemPrompt: formPrompt.trim(),
           icon: formIcon,
+          visibility: formVisibility,
         });
         setToast({ open: true, message: 'Tool updated successfully!', severity: 'success' });
       } else {
@@ -167,6 +179,7 @@ export default function ToolsPage() {
           description: formDescription.trim(),
           systemPrompt: formPrompt.trim(),
           icon: formIcon,
+          visibility: formVisibility,
         });
         setToast({ open: true, message: 'AI Tool created successfully!', severity: 'success' });
       }
@@ -279,6 +292,7 @@ export default function ToolsPage() {
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 650, mx: 'auto', fontSize: '0.95rem' }}>
             Build specialized AI assistants tailored to your workflow. Define a role, persona, and system prompt, then launch directly in your chat interface.
+            {!user && ' Sign in to see private tools reserved for authenticated users.'}
           </Typography>
         </Box>
 
@@ -342,6 +356,7 @@ export default function ToolsPage() {
             {/* List Existing Tools */}
             {tools.map((tool) => {
               const IconComp = getToolIconComponent(tool.icon);
+              const isPrivate = tool.visibility === 'private';
               return (
                 <Grid key={tool._id} size={{ xs: 12, sm: 6, md: 4 }}>
                   <Card
@@ -383,23 +398,33 @@ export default function ToolsPage() {
                         >
                           <IconComp sx={{ fontSize: 24 }} />
                         </Box>
-                        {tool.isBuiltin ? (
+                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                           <Chip
                             size="small"
-                            label="Built-in"
-                            color="primary"
+                            icon={isPrivate ? <LockRoundedIcon sx={{ fontSize: '14px !important' }} /> : <PublicRoundedIcon sx={{ fontSize: '14px !important' }} />}
+                            label={isPrivate ? 'Private' : 'Public'}
+                            color={isPrivate ? 'warning' : 'success'}
                             variant="outlined"
                             sx={{ fontWeight: 600, fontSize: '0.7rem' }}
                           />
-                        ) : (
-                          <Chip
-                            size="small"
-                            label="Custom Tool"
-                            color="secondary"
-                            variant="outlined"
-                            sx={{ fontWeight: 600, fontSize: '0.7rem' }}
-                          />
-                        )}
+                          {tool.isBuiltin ? (
+                            <Chip
+                              size="small"
+                              label="Built-in"
+                              color="primary"
+                              variant="outlined"
+                              sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                            />
+                          ) : (
+                            <Chip
+                              size="small"
+                              label="Custom"
+                              color="secondary"
+                              variant="outlined"
+                              sx={{ fontWeight: 600, fontSize: '0.7rem' }}
+                            />
+                          )}
+                        </Box>
                       </Box>
 
                       <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1.05rem', mb: 0.5 }}>
@@ -541,6 +566,42 @@ export default function ToolsPage() {
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
             />
+
+            {/* Visibility */}
+            <FormControl>
+              <FormLabel sx={{ fontWeight: 600, fontSize: '0.8rem', color: 'text.secondary', mb: 1 }}>
+                Visibility
+              </FormLabel>
+              <ToggleButtonGroup
+                exclusive
+                fullWidth
+                size="small"
+                value={formVisibility}
+                onChange={(_e, next: ToolVisibility | null) => {
+                  if (next) setFormVisibility(next);
+                }}
+                sx={{
+                  '& .MuiToggleButton-root': {
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    borderRadius: 2.5,
+                    py: 1,
+                  },
+                }}
+              >
+                <ToggleButton value="public">
+                  <PublicRoundedIcon sx={{ fontSize: 18, mr: 1 }} />
+                  Public — anyone can use
+                </ToggleButton>
+                <ToggleButton value="private">
+                  <LockRoundedIcon sx={{ fontSize: 18, mr: 1 }} />
+                  Private — logged-in only
+                </ToggleButton>
+              </ToggleButtonGroup>
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                Private tools are completely hidden from visitors who are not signed in (API, UI, and chat access).
+              </Typography>
+            </FormControl>
 
             {/* Icon Picker */}
             <Box>
