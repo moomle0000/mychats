@@ -6,6 +6,7 @@ import { ConversationModel, IConversation } from './conversation.model';
 import { MessageModel, IMessage } from './message.model';
 import { SSEService } from './sse.service';
 import { ToolModel } from '../tools/tool.model';
+import { SettingService } from '../settings/setting.service';
 import { HttpException } from '@exceptions/httpException';
 import { AI_API_URL } from '@config';
 import { logger } from '@utils/logger';
@@ -46,7 +47,10 @@ export interface CreateMessageDto {
 
 @Service()
 export class ChatService {
-  constructor(private sseService: SSEService) {}
+  constructor(
+    private sseService: SSEService,
+    private settingService: SettingService
+  ) {}
 
   public async getOrCreateLiveConversation(): Promise<IConversation> {
     let live = await ConversationModel.findOne({ status: 'live' }).sort({ createdAt: -1 });
@@ -287,23 +291,43 @@ export class ChatService {
       formattedMessages.push({ role: 'user', content: payload.text });
     }
 
-    // 3. Stream from llama.cpp OpenAI-compatible API
+    // 3. Load dynamic AI settings (configured baseUrl and defaultModel)
+    const aiConfig = await this.settingService.getAISettings();
+    const effectiveBaseUrl = (aiConfig.aiBaseUrl || AI_API_URL).replace(/\/+$/, '');
+    const effectiveModel = aiConfig.defaultModel || undefined;
+    const effectiveKey = aiConfig.apiKey?.trim();
+
+    // 4. Stream from OpenAI-compatible API
     let aiResponseText = '';
     let chunkCount = 0;
     let providerFailed = false;
     let providerError = '';
 
     try {
+      const requestBody: Record<string, any> = {
+        messages: formattedMessages,
+        temperature: 0.7,
+        max_tokens: 1500,
+        stream: true,
+      };
+      // Supply model property if admin has selected or configured a default model
+      if (effectiveModel) {
+        requestBody.model = effectiveModel;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      };
+      if (effectiveKey) {
+        headers['Authorization'] = `Bearer ${effectiveKey}`;
+      }
+
       const response = await axios.post(
-        `${AI_API_URL}/chat/completions`,
+        `${effectiveBaseUrl}/chat/completions`,
+        requestBody,
         {
-          messages: formattedMessages,
-          temperature: 0.7,
-          max_tokens: 1500,
-          stream: true,
-        },
-        {
-          headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+          headers,
           responseType: 'stream',
           // No hard axios timeout — keep the SSE channel open while the model generates.
           timeout: 0,
@@ -363,7 +387,7 @@ export class ChatService {
       providerFailed = true;
       providerError = err?.message || 'timeout/offline';
       logger.error(`[AI Stream] provider error: ${providerError}`);
-      aiResponseText = `⚠️ AI Error: Could not connect to AI engine (${providerError}). Please ensure llama.cpp is running at ${AI_API_URL}.`;
+      aiResponseText = `⚠️ AI Error: Could not connect to AI engine (${providerError}). Please verify the provider at ${effectiveBaseUrl}.`;
       handlers.onError(aiResponseText);
     }
 

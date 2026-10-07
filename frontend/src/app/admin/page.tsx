@@ -58,9 +58,11 @@ import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded';
 import LaptopMacRoundedIcon from '@mui/icons-material/LaptopMacRounded';
 import SmartphoneRoundedIcon from '@mui/icons-material/SmartphoneRounded';
 import CheckCircleOutlineRoundedIcon from '@mui/icons-material/CheckCircleOutlineRounded';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import { useRouter } from 'next/navigation';
 import { api, Conversation, Message, AdminStats, BACKEND_URL, User } from '@/lib/api';
 import { useColorMode } from '@/theme/ColorModeContext';
+import AISettingsModal from '@/components/AISettingsModal';
 import Link from 'next/link';
 
 export default function AdminPage() {
@@ -69,6 +71,9 @@ export default function AdminPage() {
 
   // Active Tab: 'archives' | 'accounts'
   const [activeTab, setActiveTab] = useState<'archives' | 'accounts'>('archives');
+
+  // AI Settings Modal
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
 
   // Logged-in admin user
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -386,7 +391,21 @@ export default function AdminPage() {
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<TuneRoundedIcon />}
+            onClick={() => setAiSettingsOpen(true)}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              fontSize: '0.825rem',
+            }}
+          >
+            AI Provider &amp; Models
+          </Button>
           <Tooltip title="Toggle theme">
             <IconButton onClick={toggleColorMode} color="inherit" size="small">
               {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
@@ -1285,6 +1304,12 @@ export default function AdminPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* AI Provider & Models Settings Dialog */}
+      <AISettingsModal
+        open={aiSettingsOpen}
+        onClose={() => setAiSettingsOpen(false)}
+      />
     </Box>
   );
 }

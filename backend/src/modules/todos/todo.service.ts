@@ -5,6 +5,7 @@ import { TodoModel, ITodo, TodoPriority, TodoStatus } from './todo.model';
 import { HttpException } from '@exceptions/httpException';
 import { AI_API_URL } from '@config';
 import { SSEService } from '../chat/sse.service';
+import { SettingService } from '../settings/setting.service';
 
 export interface CreateTodoDto {
   title: string;
@@ -82,7 +83,10 @@ JSON schema:
 
 @Service()
 export class TodoService {
-  constructor(private sseService: SSEService) {}
+  constructor(
+    private sseService: SSEService,
+    private settingService: SettingService
+  ) {}
 
   public async getTodos(query: {
     status?: string;
@@ -186,23 +190,39 @@ export class TodoService {
     }
 
     try {
+      const aiConfig = await this.settingService.getAISettings();
+      const effectiveBaseUrl = (aiConfig.aiBaseUrl || AI_API_URL).replace(/\/+$/, '');
+      const effectiveModel = aiConfig.defaultModel || undefined;
+      const effectiveKey = aiConfig.apiKey?.trim();
+
+      const requestBody: Record<string, any> = {
+        messages: [
+          { role: 'system', content: TODO_AI_SYSTEM_PROMPT },
+          { role: 'user', content: text.trim() },
+        ],
+        temperature: 0.3,
+        max_tokens: 3500,
+        stream: false,
+      };
+      if (effectiveModel) {
+        requestBody.model = effectiveModel;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (effectiveKey) {
+        headers['Authorization'] = `Bearer ${effectiveKey}`;
+      }
+
       // Long-running AI call: execution-prompt generation can take 2-3+ min
-      // on llama.cpp (CPU). Allow up to 5 min so the task completes instead
-      // of hitting the old 60s axios timeout (which surfaced as
-      // "Failed to proxy ... socket hang up" on the frontend).
+      // on CPU / llama.cpp. Allow up to 5 min so the task completes instead
+      // of hitting the old 60s axios timeout.
       const response = await axios.post(
-        `${AI_API_URL}/chat/completions`,
+        `${effectiveBaseUrl}/chat/completions`,
+        requestBody,
         {
-          messages: [
-            { role: 'system', content: TODO_AI_SYSTEM_PROMPT },
-            { role: 'user', content: text.trim() },
-          ],
-          temperature: 0.3,
-          max_tokens: 3500,
-          stream: false,
-        },
-        {
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           timeout: 300000,
         }
       );

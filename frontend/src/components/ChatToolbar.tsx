@@ -26,9 +26,11 @@ import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
 import DevicesRoundedIcon from '@mui/icons-material/DevicesRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import { useColorMode } from '@/theme/ColorModeContext';
 import { SSEConnectionStatus } from '@/hooks/useSSE';
 import { User, getOrCreateDeviceId, getDeviceLabel, setDeviceLabel } from '@/lib/api';
+import AISettingsModal from './AISettingsModal';
 
 interface ChatToolbarProps {
   status: SSEConnectionStatus;
@@ -66,6 +68,9 @@ export default function ChatToolbar({
   const [deviceId, setDeviceId] = useState('');
   const [deviceLabel, setDeviceLabelState] = useState('');
   const [editLabelInput, setEditLabelInput] = useState('');
+
+  // AI Provider & Model settings modal (Admin only)
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -331,6 +336,22 @@ export default function ChatToolbar({
               </Tooltip>
             )}
 
+            {/* AI Provider & Models Settings (Admin Only) */}
+            {user?.role === 'admin' && (
+              <Tooltip title="AI Provider & Model Settings">
+                <IconButton
+                  color="inherit"
+                  size="small"
+                  onClick={() => setAiSettingsOpen(true)}
+                  sx={{
+                    color: (theme) => theme.palette.mode === 'dark' ? '#a78bfa' : '#7c3aed',
+                  }}
+                >
+                  <TuneRoundedIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+
             {/* Dark / Light Toggle */}
             <Tooltip title={mode === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}>
               <IconButton onClick={toggleColorMode} color="inherit" size="small">
@@ -426,6 +447,14 @@ export default function ChatToolbar({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* AI Provider & Models Settings Dialog (Admin Only) */}
+      {user?.role === 'admin' && (
+        <AISettingsModal
+          open={aiSettingsOpen}
+          onClose={() => setAiSettingsOpen(false)}
+        />
+      )}
     </>
   );
 }

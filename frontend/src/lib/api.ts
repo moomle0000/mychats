@@ -98,6 +98,18 @@ export interface AIParsedTaskItem {
   prompt?: string | null;
 }
 
+export interface AISettings {
+  aiBaseUrl: string;
+  defaultModel: string;
+  apiKey?: string;
+}
+
+export interface AIModelOption {
+  id: string;
+  owned_by?: string;
+  created?: number;
+}
+
 const AUTH_TOKEN_KEY = 'chat_auth_token';
 
 export const getAuthToken = (): string | null => {
@@ -549,6 +561,30 @@ export const api = {
 
   async deleteTool(id: string): Promise<{ data: { deleted: boolean; id: string } }> {
     return request(`/api/tools/${id}`, { method: 'DELETE' });
+  },
+
+  // AI Provider & Settings API (Admin Only)
+  async getAISettings(): Promise<{ data: AISettings }> {
+    return request('/api/settings/ai');
+  },
+
+  async updateAISettings(payload: {
+    aiBaseUrl?: string;
+    defaultModel?: string;
+    apiKey?: string;
+  }): Promise<{ data: AISettings }> {
+    return request('/api/settings/ai', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async fetchAIModels(targetUrl?: string, apiKey?: string): Promise<{ data: AIModelOption[] }> {
+    const params = new URLSearchParams();
+    if (targetUrl) params.set('url', targetUrl);
+    if (apiKey) params.set('apiKey', apiKey);
+    const qs = params.toString();
+    return request(`/api/settings/ai/models${qs ? `?${qs}` : ''}`);
   },
 
   // Todos API

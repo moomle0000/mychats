@@ -47,8 +47,10 @@ import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
 import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import PushPinRoundedIcon from '@mui/icons-material/PushPinRounded';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 import { Conversation, User, AITool, api, getOrCreateDeviceId, getDeviceLabel, setDeviceLabel } from '@/lib/api';
 import { useColorMode } from '@/theme/ColorModeContext';
+import AISettingsModal from './AISettingsModal';
 import Link from 'next/link';
 
 interface SidebarProps {
@@ -120,6 +122,9 @@ export default function Sidebar({
   const [sidebarDeviceLabel, setSidebarDeviceLabel] = useState('');
   const [deviceModalOpen, setDeviceModalOpen] = useState(false);
   const [newDeviceLabel, setNewDeviceLabel] = useState('');
+
+  // AI Provider & Models modal state (Admin only)
+  const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
 
   // Tools collapsible state (click-to-toggle; user choice sticks on all screens)
   const [toolsExpanded, setToolsExpanded] = useState(true);
@@ -1104,6 +1109,29 @@ export default function Sidebar({
                 Admin Archive
               </Typography>
             </Box>
+
+            {/* AI Provider & Models Setting Button (Admin only) */}
+            {user?.role === 'admin' && (
+              <Box
+                onClick={() => setAiSettingsOpen(true)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.25,
+                  px: 1.5,
+                  py: 0.85,
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  color: 'inherit',
+                  '&:hover': { backgroundColor: isDark ? '#262626' : '#e4e8f1' },
+                }}
+              >
+                <TuneRoundedIcon sx={{ fontSize: 18, color: isDark ? '#a78bfa' : '#7c3aed' }} />
+                <Typography variant="body2" sx={{ fontSize: '0.825rem', fontWeight: 500 }}>
+                  AI Provider &amp; Models
+                </Typography>
+              </Box>
+            )}
           </>
         )}
 
@@ -1380,6 +1408,14 @@ export default function Sidebar({
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* AI Provider & Models Settings Dialog (Admin only) */}
+      {user?.role === 'admin' && (
+        <AISettingsModal
+          open={aiSettingsOpen}
+          onClose={() => setAiSettingsOpen(false)}
+        />
+      )}
     </Box>
   );
 
