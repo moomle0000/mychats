@@ -20,8 +20,11 @@ import {
   Paper,
   Tooltip,
   Chip,
+  CircularProgress,
+  InputBase,
 } from '@mui/material';
 import AddRoundedIcon from '@mui/icons-material/AddRounded';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 import ChatBubbleOutlineRoundedIcon from '@mui/icons-material/ChatBubbleOutlineRounded';
 import MoreHorizRoundedIcon from '@mui/icons-material/MoreHorizRounded';
 import EditRoundedIcon from '@mui/icons-material/EditRounded';
@@ -67,6 +70,11 @@ interface SidebarProps {
   onDelete: (id: string) => Promise<void>;
   onTogglePin?: (id: string, isPinned?: boolean) => Promise<void>;
   isMobile: boolean;
+  onLoadMore?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
 }
 
 function getSidebarToolIcon(iconName?: string) {
@@ -102,6 +110,11 @@ export default function Sidebar({
   onDelete,
   onTogglePin,
   isMobile,
+  onLoadMore,
+  hasMore = false,
+  loadingMore = false,
+  searchQuery = '',
+  onSearchChange,
 }: SidebarProps) {
   const { mode, toggleColorMode } = useColorMode();
   const isDark = mode === 'dark';
@@ -127,7 +140,7 @@ export default function Sidebar({
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false);
 
   // Tools collapsible state (click-to-toggle; user choice sticks on all screens)
-  const [toolsExpanded, setToolsExpanded] = useState(true);
+  const [toolsExpanded, setToolsExpanded] = useState(false);
 
   // Pinned conversations (sorted chronologically)
   const pinnedConversations = React.useMemo(() => {
@@ -150,6 +163,34 @@ export default function Sidebar({
         return timeB - timeA;
       });
   }, [conversations]);
+
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    if (!hasMore || loadingMore || !onLoadMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+    const el = sentinelRef.current;
+    if (el) observer.observe(el);
+    return () => {
+      if (el) observer.unobserve(el);
+    };
+  }, [hasMore, loadingMore, onLoadMore]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 80) {
+      if (hasMore && !loadingMore && onLoadMore) {
+        onLoadMore();
+      }
+    }
+  };
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -225,6 +266,11 @@ export default function Sidebar({
     }
   };
 
+  // Selecting any item inside the "Tools & AI" section collapses it
+  const handleSelectInTools = (conversationId: string) => {
+    onSelectConversation(conversationId);
+    setToolsExpanded(false);
+  };
 
   const sidebarContent = (
     <Box
@@ -291,7 +337,7 @@ export default function Sidebar({
           justifyContent: 'flex-start',
           fontWeight: 600,
           fontSize: '0.875rem',
-          mb: 2.5,
+          mb: 1.5,
           '&:hover': {
             backgroundColor: isDark ? '#333333' : '#e4e8f1',
             borderColor: isDark ? '#525252' : '#cdd3e0',
@@ -303,6 +349,75 @@ export default function Sidebar({
       >
         New chat
       </Button>
+
+      {/* Sleek Search Bar */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1.5,
+          py: 0.6,
+          borderRadius: 6,
+          backgroundColor: isDark ? '#262626' : '#ffffff',
+          border: 1,
+          borderColor: isDark ? '#404040' : '#dde2ee',
+          boxShadow: isDark
+            ? '0 1px 3px rgba(0,0,0,0.4)'
+            : '0 1px 3px rgba(0,0,0,0.06)',
+          mb: 1.5,
+          transition: 'all 0.2s ease',
+          '&:focus-within': {
+            borderColor: isDark ? '#818cf8' : '#4f46e5',
+            boxShadow: isDark
+              ? '0 0 0 2px rgba(129, 140, 248, 0.25)'
+              : '0 0 0 2px rgba(79, 70, 229, 0.15)',
+          },
+        }}
+      >
+        <SearchRoundedIcon
+          sx={{
+            fontSize: 19,
+            color: isDark ? '#9ca3af' : '#6b7280',
+            flexShrink: 0,
+          }}
+        />
+        <InputBase
+          fullWidth
+          value={searchQuery}
+          onChange={(e) => onSearchChange?.(e.target.value)}
+          placeholder="Search past chats..."
+          inputProps={{ 'aria-label': 'Search past chats' }}
+          sx={{
+            fontSize: '0.85rem',
+            color: isDark ? '#ffffff' : '#1b2030',
+            '& input': {
+              p: 0,
+              '&::placeholder': {
+                color: isDark ? '#9ca3af' : '#9ca3af',
+                opacity: 1,
+              },
+            },
+          }}
+        />
+        {Boolean(searchQuery) && (
+          <IconButton
+            size="small"
+            onClick={() => onSearchChange?.('')}
+            sx={{
+              p: 0.25,
+              color: isDark ? '#9ca3af' : '#6b7280',
+              '&:hover': {
+                color: isDark ? '#ffffff' : '#1b2030',
+                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+              },
+            }}
+            aria-label="Clear search"
+          >
+            <CloseRoundedIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        )}
+      </Box>
 
       {/* Collapsible Tools Section: Accessible on both mobile and desktop */}
       <Box
@@ -439,7 +554,7 @@ export default function Sidebar({
         >
           {/* 1. Dedicated "My Tasks" (Todo) Button */}
           <Box
-            onClick={() => onSelectConversation('todo')}
+            onClick={() => handleSelectInTools('todo')}
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -529,7 +644,7 @@ export default function Sidebar({
                 return (
                   <Box
                     key={tool._id}
-                    onClick={() => onSelectConversation(tool._id)}
+                    onClick={() => handleSelectInTools(tool._id)}
                     sx={{
                       display: 'flex',
                       alignItems: 'center',
@@ -611,7 +726,7 @@ export default function Sidebar({
 
               {!tools.some((t) => t.name === 'Technical Translator') && (
                 <Box
-                  onClick={() => onSelectConversation('translator')}
+                  onClick={() => handleSelectInTools('translator')}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -674,7 +789,7 @@ export default function Sidebar({
             </>
           ) : (
             <Box
-              onClick={() => onSelectConversation('translator')}
+              onClick={() => handleSelectInTools('translator')}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -755,6 +870,7 @@ export default function Sidebar({
 
       {/* Conversations List */}
       <Box
+        onScroll={handleScroll}
         sx={{
           flex: 1,
           minHeight: 0,
@@ -990,6 +1106,23 @@ export default function Sidebar({
                 </Box>
               );
             })}
+
+            {/* Empty search results state */}
+            {searchQuery.trim() && pinnedConversations.length === 0 && recentConversations.length === 0 && (
+              <Box sx={{ py: 3, px: 2, textAlign: 'center', color: isDark ? '#9ca3af' : '#6b7280' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.825rem', fontWeight: 500 }}>
+                  No chats match &ldquo;{searchQuery}&rdquo;
+                </Typography>
+              </Box>
+            )}
+
+            {/* Bottom Sentinel & Infinite Scroll Loader */}
+            <div ref={sentinelRef} style={{ height: 1 }} />
+            {loadingMore && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5 }}>
+                <CircularProgress size={18} />
+              </Box>
+            )}
           </>
         ) : (
           /* If user is NOT logged in: HIDE RECENT CHATS and show private notice */

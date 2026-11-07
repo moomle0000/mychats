@@ -241,8 +241,8 @@ export const api = {
   },
 
   // Chat API
-  async getSidebarConversations(search = ''): Promise<{ data: Conversation[] }> {
-    const params = new URLSearchParams({ limit: '100' });
+  async getSidebarConversations(page = 1, limit = 10, search = ''): Promise<{ data: Conversation[]; total: number; page: number; totalPages: number }> {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (search) params.append('search', search);
     return request(`/api/chat/conversations?${params.toString()}`);
   },

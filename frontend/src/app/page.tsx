@@ -37,6 +37,12 @@ export default function ChatPage() {
   const [user, setUser] = useState<User | null>(null);
   const [currentDbConv, setCurrentDbConv] = useState<Conversation | null>(null);
 
+  // Sidebar pagination state
+  const [sidebarPage, setSidebarPage] = useState(1);
+  const [hasMoreSidebar, setHasMoreSidebar] = useState(true);
+  const [loadingMoreSidebar, setLoadingMoreSidebar] = useState(false);
+  const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
+
   // Toggle Mode Handler (Chat <-> AI)
   const handleToggleMode = useCallback(() => {
     setMode((prev) => (prev === 'chat' ? 'ai' : 'chat'));
@@ -118,23 +124,68 @@ export default function ChatPage() {
     }
   }, [isToolChat, activeConversationId]);
 
-  // Fetch all archived conversations for sidebar ONLY if user is logged in
-  const loadSidebarConversations = useCallback(async () => {
-    if (!user) {
-      setConversations([]);
+  const sidebarSearchRef = useRef(sidebarSearchQuery);
+  useEffect(() => {
+    sidebarSearchRef.current = sidebarSearchQuery;
+  }, [sidebarSearchQuery]);
+
+  // Fetch archived conversations for sidebar with pagination ONLY if user is logged in
+  const loadSidebarConversations = useCallback(
+    async (page = 1, append = false, search?: string) => {
+      if (!user) {
+        setConversations([]);
+        setHasMoreSidebar(false);
+        return;
+      }
+      const query = typeof search === 'string' ? search : sidebarSearchRef.current;
+      try {
+        const res = await api.getSidebarConversations(page, 10, query);
+        const items = res.data || [];
+        if (append) {
+          setConversations((prev) => {
+            const existingIds = new Set(prev.map((c) => c._id));
+            const fresh = items.filter((c) => !existingIds.has(c._id));
+            return [...prev, ...fresh];
+          });
+        } else {
+          setConversations(items);
+        }
+        setSidebarPage(page);
+        setHasMoreSidebar(res.page < res.totalPages && items.length > 0);
+      } catch (err) {
+        console.error('Failed to load conversations:', err);
+      }
+    },
+    [user]
+  );
+
+  const handleLoadMoreSidebar = useCallback(async () => {
+    if (loadingMoreSidebar || !hasMoreSidebar || !user) return;
+    setLoadingMoreSidebar(true);
+    try {
+      await loadSidebarConversations(sidebarPage + 1, true, sidebarSearchQuery);
+    } finally {
+      setLoadingMoreSidebar(false);
+    }
+  }, [loadingMoreSidebar, hasMoreSidebar, user, sidebarPage, loadSidebarConversations, sidebarSearchQuery]);
+
+  // Debounce search query changes to reload sidebar conversations
+  const prevQueryRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevQueryRef.current === null) {
+      prevQueryRef.current = sidebarSearchQuery;
+      loadSidebarConversations(1, false, sidebarSearchQuery);
       return;
     }
-    try {
-      const res = await api.getSidebarConversations();
-      setConversations(res.data || []);
-    } catch (err) {
-      console.error('[ChatPage] Failed to load sidebar conversations:', err);
+    if (prevQueryRef.current !== sidebarSearchQuery) {
+      prevQueryRef.current = sidebarSearchQuery;
+      const timer = setTimeout(() => {
+        loadSidebarConversations(1, false, sidebarSearchQuery);
+      }, 300);
+      return () => clearTimeout(timer);
     }
-  }, [user]);
-
-  useEffect(() => {
-    loadSidebarConversations();
-  }, [loadSidebarConversations]);
+    loadSidebarConversations(1, false, sidebarSearchQuery);
+  }, [sidebarSearchQuery, loadSidebarConversations]);
 
   // If user logs out while viewing an archived conversation, reset back to Live Chat
   useEffect(() => {
@@ -371,13 +422,14 @@ export default function ChatPage() {
     if (isToolChat) {
       await api.clearChat(activeConversationId);
       setMessages([]);
+      loadSidebarConversations(1);
       return;
     }
     await api.clearChat('live');
     setMessages([]);
     setActiveConversationId('live');
     setActiveTitle('Live Chat');
-    loadSidebarConversations();
+    loadSidebarConversations(1);
   };
 
   // Rename conversation in sidebar
@@ -448,6 +500,11 @@ export default function ChatPage() {
         onDelete={handleDelete}
         onTogglePin={handleTogglePin}
         isMobile={isMobile}
+        onLoadMore={handleLoadMoreSidebar}
+        hasMore={hasMoreSidebar}
+        loadingMore={loadingMoreSidebar}
+        searchQuery={sidebarSearchQuery}
+        onSearchChange={setSidebarSearchQuery}
       />
 
       {/* Main Chat Interface */}

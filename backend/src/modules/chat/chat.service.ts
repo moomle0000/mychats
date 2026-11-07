@@ -423,9 +423,6 @@ export class ChatService {
   public async clearAndArchive(): Promise<{ archived: IConversation; newLive: IConversation }> {
     const live = await this.getOrCreateLiveConversation();
     const count = await MessageModel.countDocuments({ conversationId: live._id });
-    if (count === 0) {
-      throw new HttpException(400, 'Cannot archive an empty conversation. No messages in this chat yet.');
-    }
 
     const now = new Date();
     const dateStr = now.toISOString().replace('T', ' ').substring(0, 16);
@@ -472,34 +469,115 @@ export class ChatService {
     return { archived: live, newLive };
   }
 
-  public async clearTranslator(deviceId: string = ''): Promise<{ cleared: boolean }> {
+  public async clearTranslator(deviceId: string = ''): Promise<{ cleared: boolean; archived: IConversation }> {
     const translator = await this.getOrCreateTranslatorConversation(deviceId);
-    await MessageModel.deleteMany({ conversationId: translator._id });
-    translator.messageCount = 0;
-    translator.previewText = 'Technical Translator (Arabic ➔ AI Prompt)';
+    const count = await MessageModel.countDocuments({ conversationId: translator._id });
+
+    const firstMsg = await MessageModel.findOne({
+      conversationId: translator._id,
+      senderName: { $ne: 'AI' },
+      text: { $nin: ['', null] },
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+    const firstLine = (firstMsg?.text || '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l.length > 0) || '';
+    const now = new Date();
+    const dateStr = now.toISOString().replace('T', ' ').substring(0, 16);
+    const archiveTitle = firstLine
+      ? `[Technical Translator] ${firstLine.length > 50 ? `${firstLine.slice(0, 50)}…` : firstLine}`
+      : `[Technical Translator] ${dateStr} (${count} msgs)`;
+
+    translator.status = 'archived';
+    translator.title = archiveTitle;
+    translator.archivedAt = now;
+    translator.messageCount = count;
     await translator.save();
-    await this.sseService.broadcast('chat:translator-reset', { timestamp: Date.now() }, deviceId || undefined);
-    return { cleared: true };
+
+    await ConversationModel.create({
+      status: 'translator',
+      deviceId: deviceId || null,
+      title: 'Technical Translator',
+      startedAt: now,
+      messageCount: 0,
+      previewText: 'Technical Translator (Arabic ➔ AI Prompt)',
+    });
+
+    await this.sseService.broadcast('chat:translator-reset', { timestamp: now.toISOString() }, deviceId || undefined);
+    return { cleared: true, archived: translator };
   }
 
   public async clearToolConversation(
     toolId: string,
     deviceId: string = '',
     isAuthenticated: boolean = false
-  ): Promise<{ cleared: boolean }> {
+  ): Promise<{ cleared: boolean; archived: IConversation }> {
     const conv = await this.getOrCreateToolConversation(toolId, deviceId, isAuthenticated);
-    await MessageModel.deleteMany({ conversationId: conv._id });
-    conv.messageCount = 0;
-    conv.previewText = '';
+
+    const cleanId = toolId.replace('tool:', '');
+    let toolTitle = 'Tool';
+    if (Types.ObjectId.isValid(cleanId)) {
+      const tool = await ToolModel.findById(cleanId);
+      if (tool) toolTitle = tool.name;
+    }
+
+    const count = await MessageModel.countDocuments({ conversationId: conv._id });
+
+    const firstMsg = await MessageModel.findOne({
+      conversationId: conv._id,
+      senderName: { $ne: 'AI' },
+      text: { $nin: ['', null] },
+    })
+      .sort({ createdAt: 1 })
+      .lean();
+    const firstLine = (firstMsg?.text || '')
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .find((l) => l.length > 0) || '';
+    const now = new Date();
+    const dateStr = now.toISOString().replace('T', ' ').substring(0, 16);
+    const archiveTitle = firstLine
+      ? `[${toolTitle}] ${firstLine.length > 50 ? `${firstLine.slice(0, 50)}…` : firstLine}`
+      : `[${toolTitle}] ${dateStr} (${count} msgs)`;
+
+    conv.status = 'archived';
+    conv.title = archiveTitle;
+    conv.archivedAt = now;
+    conv.messageCount = count;
     await conv.save();
-    await this.sseService.broadcast('chat:tool-reset', { toolId, timestamp: Date.now() }, deviceId || undefined);
-    return { cleared: true };
+
+    await ConversationModel.create({
+      status: 'tool',
+      toolId: Types.ObjectId.isValid(cleanId) ? new Types.ObjectId(cleanId) : null,
+      deviceId: deviceId || null,
+      title: toolTitle,
+      startedAt: now,
+      messageCount: 0,
+      previewText: '',
+    });
+
+    await this.sseService.broadcast('chat:tool-reset', { toolId, timestamp: now.toISOString() }, deviceId || undefined);
+    return { cleared: true, archived: conv };
   }
 
   public async listArchives(page: number = 1, limit: number = 20, search: string = ''): Promise<{ data: IConversation[]; total: number; page: number; totalPages: number }> {
     const query: any = { status: 'archived' };
     if (search && search.trim()) {
-      query.title = { $regex: search.trim(), $options: 'i' };
+      const term = search.trim();
+      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = { $regex: escaped, $options: 'i' };
+
+      const matchingMessageConvIds = await MessageModel.distinct('conversationId', {
+        text: regex,
+      });
+
+      query.$or = [
+        { title: regex },
+        { previewText: regex },
+        { _id: { $in: matchingMessageConvIds } },
+      ];
     }
 
     const safePage = Math.max(1, page);

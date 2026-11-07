@@ -1,0 +1,170 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Main agent for analysis, reasoning, and implementation
+  "model": "cpa-gui/gemini-3.8-flash-high",
+
+  // Light model for internal tasks (session titles, compaction, ...)
+  "small_model": "cpa-gui/gemini-3.5-flash-lite",
+
+  "share": "disabled",
+  "autoupdate": false,
+
+  // Allow nested subagent calls (e.g. Worker -> code-scout)
+  "experimental": {
+    "subagent_depth": 5
+  },
+
+  // Loaded in every session
+  "instructions": [
+    "AGENTS.md",
+    ".opencode/instructions/routing.md"
+  ],
+
+  "permission": {
+    // The primary agent may invoke only these subagents
+    "task": {
+      "*": "deny",
+      "explore": "deny",
+      "code-scout": "allow",
+      "repository-analyst": "allow",
+      "backend-architect": "allow",
+      "frontend-architect": "allow",
+      "database-specialist": "allow",
+      "qa-engineer": "allow",
+      "security-auditor": "allow",
+      "devops-engineer": "allow",
+      "fe-worker": "allow",
+      "be-worker": "allow",
+      "mcp-agent": "allow"
+    },
+
+    // Edit and write permissions: allows root/config/primary files, protects application source code
+    "edit": {
+      "*": "allow",
+      "frontend/src/**": "deny",
+      "backend/src/**": "deny"
+    },
+    "write": {
+      "*": "allow",
+      "frontend/src/**": "deny",
+      "backend/src/**": "deny"
+    },
+
+    // Safety rules aligned with AGENTS.md: git commands require explicit user approval ("ask")
+    "bash": {
+      "*": "ask",
+      "git *": "ask",
+      "rg *": "allow",
+      "ls*": "allow",
+      "node scripts/*": "allow",
+      "npx tsc*": "allow",
+      "npm run dev*": "deny",
+      "npm run build*": "deny",
+      "npm run start*": "deny",
+      "npm start*": "deny",
+      "kill*": "deny",
+      "taskkill*": "deny",
+      "pm2*": "deny",
+      "systemctl*": "deny",
+      "docker compose up*": "ask"
+    }
+  },
+
+  "agent": {
+    // build: primary orchestrator delegating to workers
+    "build": {
+      "permission": {
+        "edit": {
+          "*": "allow",
+          "frontend/src/**": "deny",
+          "backend/src/**": "deny"
+        },
+        "write": {
+          "*": "allow",
+          "frontend/src/**": "deny",
+          "backend/src/**": "deny"
+        },
+        // Deny direct MCP access: MCP operations are delegated exclusively to mcp-agent
+        "chrome-devtools_*": "deny",
+        "excel-local_*": "deny",
+        "mongodb-mcp-server_*": "deny",
+        "opencode_list_mcp_resources": "deny",
+        "opencode_read_mcp_resource": "deny"
+      }
+    },
+
+    // explore duplicates code-scout; disabled so code-scout is the single discovery agent
+    "explore": {
+      "disabled": true
+    },
+
+    // Discovery: light model
+    "code-scout": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+
+    // Audits (reports only): light model
+    "repository-analyst": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+    "backend-architect": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+    "frontend-architect": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+    "database-specialist": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+    "qa-engineer": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+    "security-auditor": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+    "devops-engineer": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+    "mcp-agent": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    },
+
+    // Workers: high model for precise implementation
+    "fe-worker": {
+      "model": "cpa-gui/gemini-3.8-flash-high",
+      "temperature": 0.1,
+      "permission": {
+        "task": {
+          "*": "deny",
+          "code-scout": "allow"
+        }
+      }
+    },
+    "be-worker": {
+      "model": "cpa-gui/gemini-3.8-flash-high",
+      "temperature": 0.1,
+      "permission": {
+        "task": {
+          "*": "deny",
+          "code-scout": "allow"
+        }
+      }
+    },
+
+    // Full-system orchestrator: selected manually as a primary agent
+    "project-orchestrator": {
+      "model": "cpa-gui/gemini-3.5-flash-lite",
+      "temperature": 0.1
+    }
+  }
+}

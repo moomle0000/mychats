@@ -1,0 +1,17 @@
+name: llamacpp-c-tools-models-ornith-1-5-9b-q4-k-m-gguf
+provider: openresponses
+model: C:\tools\Models\Ornith-1.5-9B-Q4_K_M.gguf
+connection:
+  base_url: http://localhost:8080/v1
+  auth: none
+  default_headers: {}
+defaults: {}
+metadata:
+  context_window: 131072
+  tokenizes:
+  - text/plain
+picker:
+  label: C:\tools\Models\Ornith-1.5-9B-Q4_K_M.gguf
+  description: Imported from llama.cpp
+  current: true
+  featured: false

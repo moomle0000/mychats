@@ -285,9 +285,7 @@ export default function ChatToolbar({
             {(isLive || isTool) && (
               <Tooltip
                 title={
-                  !hasMessages
-                    ? 'No messages to clear'
-                    : isTool
+                  isTool
                     ? 'Clear tool history for this device'
                     : 'Clear & Archive to history'
                 }
@@ -299,7 +297,7 @@ export default function ChatToolbar({
                     size="small"
                     startIcon={<DeleteSweepRoundedIcon />}
                     onClick={() => setConfirmOpen(true)}
-                    disabled={!hasMessages}
+                    disabled={clearing}
                     sx={{
                       borderRadius: 5,
                       fontSize: '0.785rem',
@@ -315,9 +313,7 @@ export default function ChatToolbar({
             {(isLive || isTool) && (
               <Tooltip
                 title={
-                  !hasMessages
-                    ? 'No messages to clear'
-                    : isTool
+                  isTool
                     ? 'Clear Tool Chat'
                     : 'Clear & Archive'
                 }
@@ -327,7 +323,7 @@ export default function ChatToolbar({
                     color={isTool ? "primary" : "error"}
                     size="small"
                     onClick={() => setConfirmOpen(true)}
-                    disabled={!hasMessages}
+                    disabled={clearing}
                     sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
                   >
                     <DeleteSweepRoundedIcon fontSize="small" />
