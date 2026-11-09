@@ -13,6 +13,10 @@ export interface IConversation extends Document {
   previewText?: string;
   createdAt: Date;
   updatedAt: Date;
+  matchingSnippet?: string;
+  matchingMessageId?: string;
+  matchedMessageId?: string;
+  matchedSnippet?: string;
 }
 
 const conversationSchema: Schema = new Schema(

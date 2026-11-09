@@ -42,6 +42,9 @@ export default function ChatPage() {
   const [hasMoreSidebar, setHasMoreSidebar] = useState(true);
   const [loadingMoreSidebar, setLoadingMoreSidebar] = useState(false);
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Conversation[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
 
   // Toggle Mode Handler (Chat <-> AI)
   const handleToggleMode = useCallback(() => {
@@ -124,22 +127,16 @@ export default function ChatPage() {
     }
   }, [isToolChat, activeConversationId]);
 
-  const sidebarSearchRef = useRef(sidebarSearchQuery);
-  useEffect(() => {
-    sidebarSearchRef.current = sidebarSearchQuery;
-  }, [sidebarSearchQuery]);
-
   // Fetch archived conversations for sidebar with pagination ONLY if user is logged in
   const loadSidebarConversations = useCallback(
-    async (page = 1, append = false, search?: string) => {
+    async (page = 1, append = false) => {
       if (!user) {
         setConversations([]);
         setHasMoreSidebar(false);
         return;
       }
-      const query = typeof search === 'string' ? search : sidebarSearchRef.current;
       try {
-        const res = await api.getSidebarConversations(page, 10, query);
+        const res = await api.getSidebarConversations(page, 10);
         const items = res.data || [];
         if (append) {
           setConversations((prev) => {
@@ -163,29 +160,46 @@ export default function ChatPage() {
     if (loadingMoreSidebar || !hasMoreSidebar || !user) return;
     setLoadingMoreSidebar(true);
     try {
-      await loadSidebarConversations(sidebarPage + 1, true, sidebarSearchQuery);
+      await loadSidebarConversations(sidebarPage + 1, true);
     } finally {
       setLoadingMoreSidebar(false);
     }
-  }, [loadingMoreSidebar, hasMoreSidebar, user, sidebarPage, loadSidebarConversations, sidebarSearchQuery]);
+  }, [loadingMoreSidebar, hasMoreSidebar, user, sidebarPage, loadSidebarConversations]);
 
-  // Debounce search query changes to reload sidebar conversations
-  const prevQueryRef = useRef<string | null>(null);
+  // Initial load of sidebar conversations when user logs in / changes
   useEffect(() => {
-    if (prevQueryRef.current === null) {
-      prevQueryRef.current = sidebarSearchQuery;
-      loadSidebarConversations(1, false, sidebarSearchQuery);
+    if (user) {
+      loadSidebarConversations(1, false);
+    } else {
+      setConversations([]);
+      setSearchResults([]);
+    }
+  }, [user, loadSidebarConversations]);
+
+  // Debounced search query for dedicated overlay dropdown
+  useEffect(() => {
+    const trimmed = sidebarSearchQuery.trim();
+    if (!trimmed || !user) {
+      setSearchResults([]);
+      setIsSearching(false);
       return;
     }
-    if (prevQueryRef.current !== sidebarSearchQuery) {
-      prevQueryRef.current = sidebarSearchQuery;
-      const timer = setTimeout(() => {
-        loadSidebarConversations(1, false, sidebarSearchQuery);
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-    loadSidebarConversations(1, false, sidebarSearchQuery);
-  }, [sidebarSearchQuery, loadSidebarConversations]);
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.getSidebarConversations(1, 20, trimmed);
+        setSearchResults(res.data || []);
+      } catch (err) {
+        console.error('Failed to search conversations:', err);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [sidebarSearchQuery, user]);
 
   // If user logs out while viewing an archived conversation, reset back to Live Chat
   useEffect(() => {
@@ -293,7 +307,8 @@ export default function ChatPage() {
   });
 
   // Select a conversation from sidebar
-  const handleSelectConversation = (id: string) => {
+  const handleSelectConversation = (id: string, targetMsgId?: string) => {
+    setTargetMessageId(targetMsgId || null);
     setActiveConversationId(id);
     if (isMobile) {
       setSidebarOpen(false);
@@ -302,6 +317,7 @@ export default function ChatPage() {
 
   // "+ New Chat" button handler
   const handleNewChat = () => {
+    setTargetMessageId(null);
     if (activeConversationId !== 'live') {
       setActiveConversationId('live');
       setActiveTitle('Live Chat');
@@ -505,6 +521,8 @@ export default function ChatPage() {
         loadingMore={loadingMoreSidebar}
         searchQuery={sidebarSearchQuery}
         onSearchChange={setSidebarSearchQuery}
+        searchResults={searchResults}
+        isSearching={isSearching}
       />
 
       {/* Main Chat Interface */}
@@ -568,6 +586,7 @@ export default function ChatPage() {
                 onDeleteMessage={handleDeleteMessage}
                 isReadOnly={isReadOnly}
                 aiGenerating={aiGenerating}
+                targetMessageId={targetMessageId}
               />
               <ChatBox
                 onSendMessage={handleSendMessage}

@@ -7,7 +7,7 @@ export interface IMessage extends Document {
   senderName: string;
   deviceId?: string;
   deviceLabel?: string;
-  kind: 'text' | 'link' | 'image';
+  kind: 'text' | 'link' | 'image' | 'file';
   text: string;
   url?: string;
   mime?: string;
@@ -46,7 +46,7 @@ const messageSchema: Schema = new Schema(
     },
     kind: {
       type: String,
-      enum: ['text', 'link', 'image'],
+      enum: ['text', 'link', 'image', 'file'],
       default: 'text',
     },
     text: {

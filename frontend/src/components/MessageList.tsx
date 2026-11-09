@@ -31,6 +31,7 @@ interface MessageListProps {
   onDeleteMessage?: (id: string) => Promise<void>;
   isReadOnly?: boolean;
   aiGenerating?: boolean;
+  targetMessageId?: string | null;
 }
 
 export default function MessageList({
@@ -39,6 +40,7 @@ export default function MessageList({
   onDeleteMessage,
   isReadOnly,
   aiGenerating,
+  targetMessageId,
 }: MessageListProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
@@ -48,6 +50,7 @@ export default function MessageList({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [taskSuccessMsg, setTaskSuccessMsg] = useState<string | null>(null);
   const [convertingTaskId, setConvertingTaskId] = useState<string | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   const handleCreateTaskFromMessage = async (msg: Message) => {
     if (!msg.text) return;
@@ -103,15 +106,33 @@ export default function MessageList({
     }
   };
 
-  // Auto-scroll on new message
+  // Auto-scroll on new message (unless targeting a specific message)
   useEffect(() => {
+    if (targetMessageId) return;
     if (containerRef.current) {
       containerRef.current.scrollTo({
         top: containerRef.current.scrollHeight,
         behavior: 'smooth',
       });
     }
-  }, [messages]);
+  }, [messages, targetMessageId]);
+
+  // Jump to and highlight target message
+  useEffect(() => {
+    if (!targetMessageId) return;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`msg-${targetMessageId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setHighlightedId(targetMessageId);
+        const clearTimer = setTimeout(() => {
+          setHighlightedId(null);
+        }, 3000);
+        return () => clearTimeout(clearTimer);
+      }
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [targetMessageId, messages]);
 
   const formatTime = (dateStr: string) => {
     try {
@@ -192,6 +213,7 @@ export default function MessageList({
           return (
             <Box
               key={msg._id}
+              id={`msg-${msg._id}`}
               sx={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -201,6 +223,14 @@ export default function MessageList({
                 alignSelf: isSenderMe ? 'flex-end' : 'flex-start',
                 position: 'relative',
                 boxSizing: 'border-box',
+                borderRadius: 2.5,
+                transition: 'all 0.3s ease',
+                ...(highlightedId === msg._id && {
+                  boxShadow: '0 0 0 2px #6366f1, 0 0 18px rgba(99, 102, 241, 0.45)',
+                  backgroundColor: (theme) =>
+                    theme.palette.mode === 'dark' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(99, 102, 241, 0.08)',
+                  p: 0.5,
+                }),
                 '&:hover .msg-actions': { opacity: 1 },
               }}
             >

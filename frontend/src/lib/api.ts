@@ -42,6 +42,10 @@ export interface Conversation {
   previewText?: string;
   isPinned?: boolean;
   createdAt: string;
+  matchedSnippet?: string;
+  matchingSnippet?: string;
+  matchedMessageId?: string;
+  matchingMessageId?: string;
 }
 
 export interface AdminStats {

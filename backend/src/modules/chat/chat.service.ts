@@ -35,7 +35,7 @@ export interface CreateMessageDto {
   text?: string;
   url?: string;
   imageUrl?: string;
-  kind?: 'text' | 'link' | 'image';
+  kind?: 'text' | 'link' | 'image' | 'file';
   senderId?: string | Types.ObjectId | null;
   senderName?: string;
   deviceLabel?: string;
@@ -562,11 +562,45 @@ export class ChatService {
     return { cleared: true, archived: conv };
   }
 
+  private extractMatchingSnippet(text: string, term: string, maxLength: number = 100): string {
+    if (!text) return '';
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+    let matchIndex = cleanText.toLowerCase().indexOf(term.toLowerCase());
+    let matchLen = term.length;
+
+    if (matchIndex === -1) {
+      try {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = new RegExp(escaped, 'i').exec(cleanText);
+        if (match && match.index !== undefined) {
+          matchIndex = match.index;
+          matchLen = match[0].length;
+        }
+      } catch {
+        // ignore regex error
+      }
+    }
+
+    if (matchIndex === -1) {
+      return cleanText.length > maxLength ? cleanText.slice(0, maxLength) + '...' : cleanText;
+    }
+
+    const contextLen = Math.max(20, Math.floor((maxLength - matchLen) / 2));
+    const start = Math.max(0, matchIndex - contextLen);
+    const end = Math.min(cleanText.length, matchIndex + matchLen + contextLen);
+
+    let snippet = cleanText.slice(start, end).trim();
+    if (start > 0) snippet = '...' + snippet;
+    if (end < cleanText.length) snippet = snippet + '...';
+    return snippet;
+  }
+
   public async listArchives(page: number = 1, limit: number = 20, search: string = ''): Promise<{ data: IConversation[]; total: number; page: number; totalPages: number }> {
     const query: any = { status: 'archived' };
-    if (search && search.trim()) {
-      const term = search.trim();
-      const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const trimmedSearch = (search || '').trim();
+
+    if (trimmedSearch) {
+      const escaped = trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = { $regex: escaped, $options: 'i' };
 
       const matchingMessageConvIds = await MessageModel.distinct('conversationId', {
@@ -588,6 +622,39 @@ export class ChatService {
       ConversationModel.find(query).sort({ isPinned: -1, archivedAt: -1, createdAt: -1 }).skip(skip).limit(safeLimit).lean(),
       ConversationModel.countDocuments(query),
     ]);
+
+    if (trimmedSearch && data.length > 0) {
+      const escaped = trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = { $regex: escaped, $options: 'i' };
+      const convIds = data.map((c: any) => c._id);
+
+      const matchingMessages = await MessageModel.find({
+        conversationId: { $in: convIds },
+        text: regex,
+      })
+        .select('_id conversationId text createdAt')
+        .sort({ createdAt: -1 })
+        .lean();
+
+      const msgMap = new Map<string, { _id: any; text: string }>();
+      for (const msg of matchingMessages) {
+        const convIdStr = msg.conversationId.toString();
+        if (!msgMap.has(convIdStr)) {
+          msgMap.set(convIdStr, msg);
+        }
+      }
+
+      for (const conv of data as any[]) {
+        const matchedMsg = msgMap.get(conv._id.toString());
+        if (matchedMsg) {
+          const snippet = this.extractMatchingSnippet(matchedMsg.text, trimmedSearch);
+          conv.matchingSnippet = snippet;
+          conv.matchingMessageId = matchedMsg._id.toString();
+          conv.matchedSnippet = snippet;
+          conv.matchedMessageId = matchedMsg._id.toString();
+        }
+      }
+    }
 
     return {
       data: (data as unknown) as IConversation[],

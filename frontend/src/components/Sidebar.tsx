@@ -62,7 +62,7 @@ interface SidebarProps {
   conversations: Conversation[];
   tools?: AITool[];
   activeConversationId: string;
-  onSelectConversation: (id: string) => void;
+  onSelectConversation: (id: string, targetMessageId?: string) => void;
   onNewChat: () => void;
   user: User | null;
   onLogout: () => void;
@@ -75,6 +75,23 @@ interface SidebarProps {
   loadingMore?: boolean;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
+  searchResults?: Conversation[];
+  isSearching?: boolean;
+}
+
+function formatSearchDate(dateStr?: string | null) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    if (isToday) {
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
 }
 
 function getSidebarToolIcon(iconName?: string) {
@@ -115,6 +132,8 @@ export default function Sidebar({
   loadingMore = false,
   searchQuery = '',
   onSearchChange,
+  searchResults = [],
+  isSearching = false,
 }: SidebarProps) {
   const { mode, toggleColorMode } = useColorMode();
   const isDark = mode === 'dark';
@@ -350,72 +369,206 @@ export default function Sidebar({
         New chat
       </Button>
 
-      {/* Sleek Search Bar */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1.5,
-          py: 0.6,
-          borderRadius: 6,
-          backgroundColor: isDark ? '#262626' : '#ffffff',
-          border: 1,
-          borderColor: isDark ? '#404040' : '#dde2ee',
-          boxShadow: isDark
-            ? '0 1px 3px rgba(0,0,0,0.4)'
-            : '0 1px 3px rgba(0,0,0,0.06)',
-          mb: 1.5,
-          transition: 'all 0.2s ease',
-          '&:focus-within': {
-            borderColor: isDark ? '#818cf8' : '#4f46e5',
+      {/* Sleek Search Bar & Floating Overlay */}
+      <Box sx={{ position: 'relative', mb: 1.5, zIndex: 30 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            px: 1.5,
+            py: 0.6,
+            borderRadius: 6,
+            backgroundColor: isDark ? '#262626' : '#ffffff',
+            border: 1,
+            borderColor: isDark ? '#404040' : '#dde2ee',
             boxShadow: isDark
-              ? '0 0 0 2px rgba(129, 140, 248, 0.25)'
-              : '0 0 0 2px rgba(79, 70, 229, 0.15)',
-          },
-        }}
-      >
-        <SearchRoundedIcon
-          sx={{
-            fontSize: 19,
-            color: isDark ? '#9ca3af' : '#6b7280',
-            flexShrink: 0,
-          }}
-        />
-        <InputBase
-          fullWidth
-          value={searchQuery}
-          onChange={(e) => onSearchChange?.(e.target.value)}
-          placeholder="Search past chats..."
-          inputProps={{ 'aria-label': 'Search past chats' }}
-          sx={{
-            fontSize: '0.85rem',
-            color: isDark ? '#ffffff' : '#1b2030',
-            '& input': {
-              p: 0,
-              '&::placeholder': {
-                color: isDark ? '#9ca3af' : '#9ca3af',
-                opacity: 1,
-              },
+              ? '0 1px 3px rgba(0,0,0,0.4)'
+              : '0 1px 3px rgba(0,0,0,0.06)',
+            transition: 'all 0.2s ease',
+            '&:focus-within': {
+              borderColor: isDark ? '#818cf8' : '#4f46e5',
+              boxShadow: isDark
+                ? '0 0 0 2px rgba(129, 140, 248, 0.25)'
+                : '0 0 0 2px rgba(79, 70, 229, 0.15)',
             },
           }}
-        />
-        {Boolean(searchQuery) && (
-          <IconButton
-            size="small"
-            onClick={() => onSearchChange?.('')}
+        >
+          <SearchRoundedIcon
             sx={{
-              p: 0.25,
+              fontSize: 19,
               color: isDark ? '#9ca3af' : '#6b7280',
-              '&:hover': {
-                color: isDark ? '#ffffff' : '#1b2030',
-                backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+              flexShrink: 0,
+            }}
+          />
+          <InputBase
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => onSearchChange?.(e.target.value)}
+            placeholder="Search past chats..."
+            inputProps={{ 'aria-label': 'Search past chats' }}
+            sx={{
+              fontSize: '0.85rem',
+              color: isDark ? '#ffffff' : '#1b2030',
+              '& input': {
+                p: 0,
+                '&::placeholder': {
+                  color: isDark ? '#9ca3af' : '#9ca3af',
+                  opacity: 1,
+                },
               },
             }}
-            aria-label="Clear search"
+          />
+          {Boolean(searchQuery) && (
+            <IconButton
+              size="small"
+              onClick={() => onSearchChange?.('')}
+              sx={{
+                p: 0.25,
+                color: isDark ? '#9ca3af' : '#6b7280',
+                '&:hover': {
+                  color: isDark ? '#ffffff' : '#1b2030',
+                  backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                },
+              }}
+              aria-label="Clear search"
+            >
+              <CloseRoundedIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          )}
+        </Box>
+
+        {/* Dedicated Floating/Overlay Dropdown Panel */}
+        {Boolean(searchQuery?.trim()) && (
+          <Paper
+            elevation={8}
+            sx={{
+              position: 'absolute',
+              top: 'calc(100% + 6px)',
+              left: 0,
+              right: 0,
+              maxHeight: 340,
+              overflowY: 'auto',
+              borderRadius: 2.5,
+              backgroundColor: isDark ? '#202020' : '#ffffff',
+              border: 1,
+              borderColor: isDark ? '#3d3d3d' : '#dde2ee',
+              boxShadow: isDark
+                ? '0 10px 25px -5px rgba(0, 0, 0, 0.75), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
+                : '0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.08)',
+              p: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.75,
+              zIndex: 100,
+            }}
           >
-            <CloseRoundedIcon sx={{ fontSize: 16 }} />
-          </IconButton>
+            {isSearching ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, py: 2.5, color: isDark ? '#9ca3af' : '#6b7280' }}>
+                <CircularProgress size={16} sx={{ color: isDark ? '#818cf8' : '#4f46e5' }} />
+                <Typography variant="caption" sx={{ fontSize: '0.8rem' }}>
+                  Searching messages...
+                </Typography>
+              </Box>
+            ) : searchResults.length === 0 ? (
+              <Box sx={{ py: 2.5, px: 1.5, textAlign: 'center', color: isDark ? '#9ca3af' : '#6b7280' }}>
+                <Typography variant="body2" sx={{ fontSize: '0.825rem', fontWeight: 500 }}>
+                  No chats match &ldquo;{searchQuery}&rdquo;
+                </Typography>
+              </Box>
+            ) : (
+              searchResults.map((conv) => {
+                const targetMsgId = conv.matchedMessageId || conv.matchingMessageId;
+                const snippet = conv.matchedSnippet || conv.matchingSnippet || conv.previewText;
+                const dateText = formatSearchDate(conv.archivedAt || conv.createdAt);
+                const isSelected = activeConversationId === conv._id;
+
+                return (
+                  <Box
+                    key={conv._id}
+                    onClick={() => {
+                      onSelectConversation(conv._id, targetMsgId);
+                      onSearchChange?.('');
+                    }}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      p: 1.25,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                      backgroundColor: isSelected
+                        ? (isDark ? 'rgba(99, 102, 241, 0.18)' : 'rgba(99, 102, 241, 0.1)')
+                        : (isDark ? '#262626' : '#f8fafc'),
+                      border: 1,
+                      borderColor: isSelected
+                        ? (isDark ? 'rgba(129, 140, 248, 0.4)' : 'rgba(79, 70, 229, 0.25)')
+                        : (isDark ? '#333333' : '#e2e8f0'),
+                      transition: 'all 0.15s ease',
+                      '&:hover': {
+                        backgroundColor: isDark ? '#333333' : '#eef2f6',
+                        borderColor: isDark ? '#4f46e5' : '#818cf8',
+                      },
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flex: 1 }}>
+                        <ChatBubbleOutlineRoundedIcon
+                          sx={{ fontSize: 16, color: isDark ? '#818cf8' : '#4f46e5', flexShrink: 0 }}
+                        />
+                        <Typography
+                          variant="body2"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize: '0.825rem',
+                            color: isDark ? '#f3f4f6' : '#1e293b',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {conv.title}
+                        </Typography>
+                      </Box>
+                      {dateText && (
+                        <Typography
+                          variant="caption"
+                          suppressHydrationWarning
+                          sx={{
+                            fontSize: '0.7rem',
+                            color: isDark ? '#9ca3af' : '#64748b',
+                            ml: 1,
+                            flexShrink: 0,
+                          }}
+                        >
+                          {dateText}
+                        </Typography>
+                      )}
+                    </Box>
+                    {snippet && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '0.75rem',
+                          color: isDark ? '#cbd5e1' : '#475569',
+                          lineHeight: 1.35,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                          p: 0.6,
+                          px: 0.8,
+                          borderRadius: 1.5,
+                        }}
+                      >
+                        {snippet}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })
+            )}
+          </Paper>
         )}
       </Box>
 
@@ -1106,15 +1259,6 @@ export default function Sidebar({
                 </Box>
               );
             })}
-
-            {/* Empty search results state */}
-            {searchQuery.trim() && pinnedConversations.length === 0 && recentConversations.length === 0 && (
-              <Box sx={{ py: 3, px: 2, textAlign: 'center', color: isDark ? '#9ca3af' : '#6b7280' }}>
-                <Typography variant="body2" sx={{ fontSize: '0.825rem', fontWeight: 500 }}>
-                  No chats match &ldquo;{searchQuery}&rdquo;
-                </Typography>
-              </Box>
-            )}
 
             {/* Bottom Sentinel & Infinite Scroll Loader */}
             <div ref={sentinelRef} style={{ height: 1 }} />
