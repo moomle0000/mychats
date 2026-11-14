@@ -1023,8 +1023,20 @@ export default function AdminPage() {
                     sx={{ maxWidth: '100%', maxHeight: 220, borderRadius: 1.5, my: 1 }}
                   />
                 )}
+                {m.url && m.kind === 'file' && (
+                  <Typography variant="body2" color="primary" sx={{ my: 0.5 }}>
+                    <a
+                      href={`${BACKEND_URL}${m.url.startsWith('/') ? '' : '/'}${m.url}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ textDecoration: 'none', color: 'inherit', fontWeight: 600 }}
+                    >
+                      📎 {decodeURIComponent(m.url.split('/').pop()?.replace(/^\d+-/, '') || 'Download File')}
+                    </a>
+                  </Typography>
+                )}
                 {m.text && <Typography variant="body2">{m.text}</Typography>}
-                {m.url && m.kind !== 'image' && (
+                {m.url && m.kind !== 'image' && m.kind !== 'file' && (
                   <Typography variant="body2" color="primary">
                     <a href={m.url} target="_blank" rel="noreferrer">
                       {m.url}

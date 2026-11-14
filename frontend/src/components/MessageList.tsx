@@ -22,8 +22,17 @@ import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import CheckRoundedIcon from '@mui/icons-material/CheckRounded';
 import TaskAltRoundedIcon from '@mui/icons-material/TaskAltRounded';
+import InsertDriveFileRoundedIcon from '@mui/icons-material/InsertDriveFileRounded';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import MarkdownRenderer from './MarkdownRenderer';
 import { BACKEND_URL, Message, api } from '@/lib/api';
+
+function formatFileSize(bytes?: number): string {
+  if (!bytes || bytes <= 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 interface MessageListProps {
   messages: Message[];
@@ -208,7 +217,9 @@ export default function MessageList({
           const isSenderMe = currentUserId && msg.senderId === currentUserId;
           const isAI = msg.senderName === 'AI';
           const isImage = msg.kind === 'image' || !!msg.url?.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i);
+          const isFile = msg.kind === 'file' || (!!msg.url && !isImage && msg.kind !== 'text' && msg.kind !== 'link');
           const fullImageUrl = getMediaUrl(msg.url || '');
+          const fileName = msg.url ? decodeURIComponent(msg.url.split('/').pop()?.replace(/^\d+-/, '') || 'Attached File') : 'Attached File';
 
           return (
             <Box
@@ -358,6 +369,62 @@ export default function MessageList({
                   overflow: 'hidden',
                 }}
               >
+                {/* File attachment message */}
+                {isFile && msg.url && (
+                  <Box
+                    component="a"
+                    href={fullImageUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    download={fileName}
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1.5,
+                      p: 1.25,
+                      mb: msg.text ? 1 : 0,
+                      borderRadius: 2,
+                      textDecoration: 'none',
+                      backgroundColor: (theme) =>
+                        theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.05)',
+                      border: 1,
+                      borderColor: (theme) =>
+                        theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                      color: 'text.primary',
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        backgroundColor: (theme) =>
+                          theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 1.5,
+                        backgroundColor: 'primary.main',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'primary.contrastText',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <InsertDriveFileRoundedIcon sx={{ fontSize: 22 }} />
+                    </Box>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, mr: 1 }}>
+                      <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
+                        {fileName}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                        {formatFileSize(msg.size) ? `${formatFileSize(msg.size)} • ` : ''}Click to download or view
+                      </Typography>
+                    </Box>
+                    <DownloadRoundedIcon sx={{ fontSize: 20, color: 'text.secondary', flexShrink: 0 }} />
+                  </Box>
+                )}
+
                 {/* Image message */}
                 {isImage && fullImageUrl && (
                   <Box

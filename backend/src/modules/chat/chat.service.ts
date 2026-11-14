@@ -184,13 +184,19 @@ export class ChatService {
     }
     const targetConvId = targetConv._id;
 
-    let kind: 'text' | 'link' | 'image' = payload.kind || 'text';
+    let kind: 'text' | 'link' | 'image' | 'file' = payload.kind || 'text';
     let url = payload.url || payload.imageUrl || '';
 
     const text = (payload.text || '').trim();
 
-    if (url && (url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || payload.imageUrl)) {
+    if (payload.kind === 'file') {
+      kind = 'file';
+    } else if (url && (url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i) || payload.imageUrl)) {
       kind = 'image';
+    } else if (url && payload.kind === 'image') {
+      kind = 'image';
+    } else if (url && !payload.kind && !url.match(/\.(jpeg|jpg|gif|png|webp|svg)$/i)) {
+      kind = 'file';
     } else if (text && text.match(/^https?:\/\/[^\s]+$/i)) {
       kind = 'link';
       url = text;
@@ -214,7 +220,7 @@ export class ChatService {
     });
 
     // Update conversation stats
-    const preview = kind === 'image' ? '[Image]' : text.length > 80 ? `${text.slice(0, 80)}...` : text;
+    const preview = kind === 'image' ? '[Image]' : kind === 'file' ? '[File Attachment]' : text.length > 80 ? `${text.slice(0, 80)}...` : text;
     await ConversationModel.findByIdAndUpdate(targetConvId, {
       $inc: { messageCount: 1 },
       $set: { previewText: preview },
@@ -774,6 +780,7 @@ export class ChatService {
         md += `### [${time}] ${m.senderName}\n`;
         if (m.text) md += `${m.text}\n\n`;
         if (m.url && m.kind === 'image') md += `![image](${m.url})\n\n`;
+        else if (m.url && m.kind === 'file') md += `[File Attachment](${m.url})\n\n`;
         else if (m.url) md += `Link: ${m.url}\n\n`;
       }
 

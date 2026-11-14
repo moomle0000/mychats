@@ -22,7 +22,7 @@ export interface Message {
   senderName: string;
   deviceId?: string;
   deviceLabel?: string;
-  kind: 'text' | 'link' | 'image';
+  kind: 'text' | 'link' | 'image' | 'file';
   text: string;
   url?: string;
   mime?: string;
@@ -261,7 +261,9 @@ export const api = {
     text?: string;
     url?: string;
     imageUrl?: string;
-    kind?: 'text' | 'link' | 'image';
+    kind?: 'text' | 'link' | 'image' | 'file';
+    mime?: string;
+    size?: number;
     conversationId?: string;
     deviceId?: string;
     deviceLabel?: string;

@@ -329,7 +329,7 @@ export default function ChatPage() {
   };
 
   // Send message handler (Supports both Chat mode and AI mode / Tools)
-  const handleSendMessage = async (text: string, imageUrl?: string, inputMode: InputMode = mode) => {
+  const handleSendMessage = async (text: string, imageUrl?: string, inputMode: InputMode = mode, kind?: 'text' | 'link' | 'image' | 'file', filename?: string) => {
     if (isReadOnly) return;
 
     // AI Mode or Dedicated Tool — stream tokens over SSE
@@ -401,7 +401,6 @@ export default function ChatPage() {
                 }
                 return prev;
               });
-              // Soft notice — stream already carries the friendly error text when possible
               console.error('[AI Stream]', error);
             },
           },
@@ -409,7 +408,6 @@ export default function ChatPage() {
         );
       } catch (err: any) {
         if (err?.name === 'AbortError') {
-          // User cancelled by sending another message — ignore
           return;
         }
         alert(`AI Generation error: ${err?.message || 'Could not reach AI model'}`);
@@ -422,8 +420,8 @@ export default function ChatPage() {
       return;
     }
 
-    // Normal Chat Mode (Live Chat or a saved conversation — both stay writable)
-    const res = await api.sendMessage({ text, imageUrl, conversationId: activeConversationId });
+    // Normal Chat Mode
+    const res = await api.sendMessage({ text, imageUrl, kind, conversationId: activeConversationId });
     handleNewMessage(res.data);
   };
 

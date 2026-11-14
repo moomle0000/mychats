@@ -55,7 +55,7 @@ export class ChatController {
 
   public createMessage = async (req: RequestWithUser, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { text, url, imageUrl, kind, conversationId } = req.body;
+      const { text, url, imageUrl, kind, mime, size, conversationId } = req.body;
       const user = req.user;
 
       const senderName = user ? (user.username || user.fullName || user.email.split('@')[0]) : 'User';
@@ -68,6 +68,8 @@ export class ChatController {
         url,
         imageUrl,
         kind,
+        mime,
+        size,
         senderId,
         senderName,
         deviceId,

@@ -14,11 +14,17 @@ const createFolderIfNotExists = (folderPath: string) => {
 // Configure storage
 const storage = multer.diskStorage({
   destination: function (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) {
-    let subDir = 'others';
+    let subDir = 'files';
 
     if (file.mimetype.startsWith('image/')) {
       subDir = 'images';
-    } else if (file.mimetype === 'application/pdf' || file.mimetype.includes('word')) {
+    } else if (
+      file.mimetype === 'application/pdf' ||
+      file.mimetype.includes('word') ||
+      file.mimetype.includes('officedocument') ||
+      file.mimetype.includes('excel') ||
+      file.mimetype.includes('powerpoint')
+    ) {
       subDir = 'documents';
     }
 
@@ -29,10 +35,15 @@ const storage = multer.diskStorage({
 
   filename: function (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) {
     const ext = path.extname(file.originalname);
-    const safeBase = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const safeBase = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_\u0600-\u06FF-]/g, '_');
     cb(null, `${Date.now()}-${safeBase}${ext}`);
   },
 });
+
+// Dangerous executable extensions to block
+const BLOCKED_EXTENSIONS = new Set([
+  'exe', 'bat', 'cmd', 'sh', 'ps1', 'msi', 'com', 'scr', 'vbs', 'vbe', 'wsf', 'wsh', 'reg', 'pif', 'dll'
+]);
 
 // Filter file types
 const fileFilter = (
@@ -40,24 +51,12 @@ const fileFilter = (
   file: Express.Multer.File,
   cb: multer.FileFilterCallback
 ) => {
-  const allowedTypes = [
-    'application/pdf',
-    'application/json',
-    'text/json',
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.ms-excel',
-  ];
-  const ext = file.originalname.toLowerCase().split('.').pop();
-  if (allowedTypes.includes(file.mimetype) || ['pdf', 'json', 'jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only standard images and documents are allowed.'));
+  const ext = file.originalname.toLowerCase().split('.').pop() || '';
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    cb(new Error('Executable and potentially unsafe files are not allowed.'));
+    return;
   }
+  cb(null, true);
 };
 
 const upload = multer({

@@ -22,7 +22,13 @@ import { api } from '@/lib/api';
 export type InputMode = 'chat' | 'ai';
 
 interface ChatBoxProps {
-  onSendMessage: (text: string, imageUrl?: string, mode?: InputMode) => Promise<void>;
+  onSendMessage: (
+    text: string,
+    imageUrl?: string,
+    mode?: InputMode,
+    kind?: 'text' | 'link' | 'image' | 'file',
+    filename?: string
+  ) => Promise<void>;
   disabled?: boolean;
   isReadOnly?: boolean;
   mode?: InputMode;
@@ -42,7 +48,7 @@ export default function ChatBox({
 }: ChatBoxProps) {
   const [text, setText] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const textareaRef = useRef<HTMLInputElement | null>(null);
 
@@ -64,13 +70,13 @@ export default function ChatBox({
   const handleSend = async () => {
     if (isReadOnly || aiGenerating) return;
     const trimmed = text.trim();
-    if (!trimmed && !pendingImageUrl) return;
+    if (!trimmed && !pendingFile) return;
 
     try {
-      const img = pendingImageUrl || undefined;
+      const fileInfo = pendingFile;
       setText('');
-      setPendingImageUrl(null);
-      await onSendMessage(trimmed, img, mode);
+      setPendingFile(null);
+      await onSendMessage(trimmed, fileInfo?.url, mode, fileInfo ? (fileInfo.type.startsWith('image/') ? 'image' : 'file') : undefined, fileInfo?.name);
     } catch (err: any) {
       alert(`Failed to send: ${err?.message || 'Error'}`);
     }
@@ -80,7 +86,11 @@ export default function ChatBox({
     try {
       setUploading(true);
       const res = await api.uploadFile(file);
-      setPendingImageUrl(res.data.url);
+      setPendingFile({
+        url: res.data.url,
+        name: file.name,
+        type: file.type || res.data.mimetype || '',
+      });
     } catch (err: any) {
       alert(`Upload failed: ${err?.message || 'Unknown error'}`);
     } finally {
@@ -94,13 +104,11 @@ export default function ChatBox({
     if (!items) return;
 
     for (let i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') !== -1) {
-        const file = items[i].getAsFile();
-        if (file) {
-          e.preventDefault();
-          handleUploadFile(file);
-          break;
-        }
+      const file = items[i].getAsFile();
+      if (file) {
+        e.preventDefault();
+        handleUploadFile(file);
+        break;
       }
     }
   };
@@ -271,30 +279,54 @@ export default function ChatBox({
           </Tooltip>
         </Box>
 
-        {/* Pending image preview capsule */}
-        {pendingImageUrl && (
+        {/* Pending file preview capsule */}
+        {pendingFile && (
           <Paper
             variant="outlined"
             sx={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 1,
+              gap: 1.5,
               p: 1,
               mb: 1.5,
               borderRadius: 2,
               backgroundColor: 'action.hover',
             }}
           >
-            <Box
-              component="img"
-              src={pendingImageUrl}
-              alt="pending upload"
-              sx={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 2 }}
-            />
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>
-              Image ready to send
-            </Typography>
-            <IconButton size="small" onClick={() => setPendingImageUrl(null)}>
+            {pendingFile.type.startsWith('image/') ? (
+              <Box
+                component="img"
+                src={pendingFile.url}
+                alt="pending upload"
+                sx={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 2 }}
+              />
+            ) : (
+              <Box
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  backgroundColor: 'primary.main',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'primary.contrastText',
+                  fontWeight: 700,
+                  fontSize: '0.75rem',
+                }}
+              >
+                FILE
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, maxWidth: 220 }}>
+              <Typography variant="caption" noWrap sx={{ color: 'text.primary', fontWeight: 600 }}>
+                {pendingFile.name}
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                Ready to send
+              </Typography>
+            </Box>
+            <IconButton size="small" onClick={() => setPendingFile(null)}>
               <CloseRoundedIcon fontSize="small" />
             </IconButton>
           </Paper>
@@ -341,14 +373,14 @@ export default function ChatBox({
           {/* Hidden file input */}
           <input
             type="file"
-            accept="image/*,.pdf,.doc,.docx"
+            accept="*/*"
             ref={fileInputRef}
             style={{ display: 'none' }}
             onChange={onFileInputChange}
           />
 
           {/* Attachment button */}
-          <Tooltip title="Attach image or document (or paste screenshot directly)">
+          <Tooltip title="Attach file or image (or paste directly)">
             <span>
               <IconButton
                 color="inherit"
@@ -375,7 +407,7 @@ export default function ChatBox({
               placeholder ||
               (isAIMode
                 ? 'Ask AI anything... (Press Tab for Chat mode, Enter to send)'
-                : 'Type a message or paste a link/image... (Press Tab for AI mode)')
+                : 'Type a message or attach a file/image... (Press Tab for AI mode)')
             }
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -400,7 +432,7 @@ export default function ChatBox({
             <span>
               <IconButton
                 onClick={handleSend}
-                disabled={(!text.trim() && !pendingImageUrl) || disabled || uploading || aiGenerating}
+                disabled={(!text.trim() && !pendingFile) || disabled || uploading || aiGenerating}
                 sx={{
                   p: 1,
                   background: isAIMode
